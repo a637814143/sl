@@ -1,1 +1,2 @@
-这是我的毕业设计项目 
+this is my project for DLU
+
