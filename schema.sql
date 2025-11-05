@@ -2,19 +2,8 @@
 
 DROP TABLE IF EXISTS drink_orders;
 DROP TABLE IF EXISTS drinks;
-DROP TABLE IF EXISTS merchants;
 DROP TABLE IF EXISTS lab_users;
-
-CREATE TABLE lab_users (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    username VARCHAR(64) NOT NULL,
-    display_name VARCHAR(255) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(32) NOT NULL,
-    avatar VARCHAR(255),
-    CONSTRAINT pk_lab_users PRIMARY KEY (id),
-    CONSTRAINT uk_lab_users_username UNIQUE (username)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DROP TABLE IF EXISTS merchants;
 
 CREATE TABLE merchants (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -23,6 +12,19 @@ CREATE TABLE merchants (
     location VARCHAR(255),
     signature_story VARCHAR(512),
     CONSTRAINT pk_merchants PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE lab_users (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    username VARCHAR(64) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(32) NOT NULL,
+    avatar VARCHAR(255),
+    managed_merchant_id BIGINT,
+    CONSTRAINT pk_lab_users PRIMARY KEY (id),
+    CONSTRAINT uk_lab_users_username UNIQUE (username),
+    CONSTRAINT fk_lab_users_merchant FOREIGN KEY (managed_merchant_id) REFERENCES merchants (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE drinks (

@@ -91,6 +91,7 @@ public class DataInitializer {
                     "https://images.8amlab.cn/avatars/merchant-noah.png");
             merchant.setUsername("merchant");
             merchant.setPasswordHash(passwordEncoder.encode("merchant123"));
+            merchant.setManagedMerchant(labBar);
             labUserRepository.save(merchant);
 
             LabUser customer = new LabUser("Iris", UserRole.CUSTOMER,
