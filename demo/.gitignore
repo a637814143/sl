@@ -18,6 +18,8 @@ target/
 *.iws
 *.iml
 *.ipr
+!eightam-lab.iml
+!eightam-lab.ipr
 
 ### NetBeans ###
 /nbproject/private/
