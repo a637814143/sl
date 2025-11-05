@@ -4,6 +4,7 @@ import com.eightam.lab.entity.Drink;
 import com.eightam.lab.dto.DrinkSummary;
 import com.eightam.lab.repository.DrinkRepository;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,7 +20,7 @@ public class DrinkCatalogService {
         return drinkRepository.findByAvailableTrueOrderByNameAsc()
                 .stream()
                 .map(this::toSummary)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private DrinkSummary toSummary(Drink drink) {

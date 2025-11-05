@@ -6,6 +6,7 @@ import com.eightam.lab.repository.LabUserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UserDirectoryService {
@@ -25,6 +26,6 @@ public class UserDirectoryService {
                         user.getRole().name(),
                         user.getAvatar()
                 ))
-                .toList();
+                .collect(Collectors.toList());
     }
 }

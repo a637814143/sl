@@ -8,6 +8,7 @@ import com.eightam.lab.entity.OrderStatus;
 import com.eightam.lab.repository.DrinkOrderRepository;
 import com.eightam.lab.repository.MerchantRepository;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +34,7 @@ public class MerchantOrderService {
         List<MerchantOrderView> orders = drinkOrderRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId)
                 .stream()
                 .map(this::toView)
-                .toList();
+                .collect(Collectors.toList());
 
         long received = drinkOrderRepository.countByMerchantIdAndStatus(merchantId, OrderStatus.RECEIVED);
         long preparing = drinkOrderRepository.countByMerchantIdAndStatus(merchantId, OrderStatus.PREPARING);

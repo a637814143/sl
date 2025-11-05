@@ -10,13 +10,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-public class DataInitializer {
+public class DrinkCatalogInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
+    private static final Logger log = LoggerFactory.getLogger(DrinkCatalogInitializer.class);
 
     private final DrinkRepository drinkRepository;
 
-    public DataInitializer(DrinkRepository drinkRepository) {
+    public DrinkCatalogInitializer(DrinkRepository drinkRepository) {
         this.drinkRepository = drinkRepository;
     }
 

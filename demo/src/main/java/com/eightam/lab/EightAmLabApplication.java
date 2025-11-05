@@ -4,9 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class EightamLabApplication {
+public class EightAmLabApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(EightamLabApplication.class, args);
+        SpringApplication.run(EightAmLabApplication.class, args);
     }
 }
