@@ -1,6 +1,6 @@
 package com.eightam.lab.repository;
 
-import com.eightam.lab.domain.Drink;
+import com.eightam.lab.entity.Drink;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 

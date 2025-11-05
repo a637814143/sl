@@ -1,7 +1,7 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.domain.LabUser;
-import com.eightam.lab.domain.UserRole;
+import com.eightam.lab.entity.LabUser;
+import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.dto.LoginRequest;
 import com.eightam.lab.dto.RegisterRequest;
 import com.eightam.lab.dto.UserResponse;

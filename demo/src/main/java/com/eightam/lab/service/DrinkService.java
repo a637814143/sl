@@ -1,6 +1,6 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.domain.Drink;
+import com.eightam.lab.entity.Drink;
 import com.eightam.lab.dto.DrinkRequest;
 import com.eightam.lab.dto.DrinkResponse;
 import com.eightam.lab.repository.DrinkRepository;

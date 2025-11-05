@@ -1,6 +1,6 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.domain.Drink;
+import com.eightam.lab.entity.Drink;
 import com.eightam.lab.dto.DrinkSummary;
 import com.eightam.lab.repository.DrinkRepository;
 import java.util.List;

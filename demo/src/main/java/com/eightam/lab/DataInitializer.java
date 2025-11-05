@@ -1,11 +1,11 @@
 package com.eightam.lab;
 
-import com.eightam.lab.domain.Drink;
-import com.eightam.lab.domain.DrinkOrder;
-import com.eightam.lab.domain.LabUser;
-import com.eightam.lab.domain.Merchant;
-import com.eightam.lab.domain.OrderStatus;
-import com.eightam.lab.domain.UserRole;
+import com.eightam.lab.entity.Drink;
+import com.eightam.lab.entity.DrinkOrder;
+import com.eightam.lab.entity.LabUser;
+import com.eightam.lab.entity.Merchant;
+import com.eightam.lab.entity.OrderStatus;
+import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.repository.DrinkOrderRepository;
 import com.eightam.lab.repository.DrinkRepository;
 import com.eightam.lab.repository.LabUserRepository;
