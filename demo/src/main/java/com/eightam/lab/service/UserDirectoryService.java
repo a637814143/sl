@@ -1,6 +1,6 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.domain.UserRole;
+import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.dto.UserProfile;
 import com.eightam.lab.repository.LabUserRepository;
 import org.springframework.stereotype.Service;

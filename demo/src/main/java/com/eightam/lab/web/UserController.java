@@ -1,6 +1,6 @@
 package com.eightam.lab.web;
 
-import com.eightam.lab.domain.UserRole;
+import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.dto.UserProfile;
 import com.eightam.lab.service.UserDirectoryService;
 import org.springframework.web.bind.annotation.CrossOrigin;

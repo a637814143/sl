@@ -1,7 +1,7 @@
 package com.eightam.lab.repository;
 
-import com.eightam.lab.domain.DrinkOrder;
-import com.eightam.lab.domain.OrderStatus;
+import com.eightam.lab.entity.DrinkOrder;
+import com.eightam.lab.entity.OrderStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

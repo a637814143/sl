@@ -1,4 +1,4 @@
-package com.eightam.lab.domain;
+package com.eightam.lab.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,28 +18,28 @@ public class Drink {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 128)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
     @Column(length = 1024)
     private String description;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", length = 255)
     private String imageUrl;
 
-    @Column(name = "flavor_profile")
+    @Column(name = "flavor_profile", length = 255)
     private String flavorProfile;
 
-    @Column(name = "is_available")
-    private boolean available;
+    @Column(name = "is_available", nullable = false)
+    private boolean available = true;
 
     @ManyToOne
     private Merchant merchant;
 
-    protected Drink() {
+    public Drink() {
     }
 
     public Drink(String name, BigDecimal price, String description, String imageUrl,
@@ -61,31 +61,55 @@ public class Drink {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public BigDecimal getPrice() {
         return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
     }
 
     public String getDescription() {
         return description;
     }
 
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public String getImageUrl() {
         return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public String getFlavorProfile() {
         return flavorProfile;
     }
 
+    public void setFlavorProfile(String flavorProfile) {
+        this.flavorProfile = flavorProfile;
+    }
+
     public boolean isAvailable() {
         return available;
+    }
+
+    public void setAvailable(boolean available) {
+        this.available = available;
     }
 
     public Merchant getMerchant() {
         return merchant;
     }
 
-    public void setAvailable(boolean available) {
-        this.available = available;
+    public void setMerchant(Merchant merchant) {
+        this.merchant = merchant;
     }
 }

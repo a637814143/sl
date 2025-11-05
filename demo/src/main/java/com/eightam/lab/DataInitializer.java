@@ -1,24 +1,24 @@
 package com.eightam.lab;
 
-import com.eightam.lab.domain.Drink;
-import com.eightam.lab.domain.DrinkOrder;
-import com.eightam.lab.domain.LabUser;
-import com.eightam.lab.domain.Merchant;
-import com.eightam.lab.domain.OrderStatus;
-import com.eightam.lab.domain.UserRole;
+import com.eightam.lab.entity.Drink;
+import com.eightam.lab.entity.DrinkOrder;
+import com.eightam.lab.entity.LabUser;
+import com.eightam.lab.entity.Merchant;
+import com.eightam.lab.entity.OrderStatus;
+import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.repository.DrinkOrderRepository;
 import com.eightam.lab.repository.DrinkRepository;
 import com.eightam.lab.repository.LabUserRepository;
 import com.eightam.lab.repository.MerchantRepository;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class DataInitializer {
@@ -29,7 +29,8 @@ public class DataInitializer {
     CommandLineRunner loadSampleData(DrinkRepository drinkRepository,
                                      MerchantRepository merchantRepository,
                                      LabUserRepository labUserRepository,
-                                     DrinkOrderRepository drinkOrderRepository) {
+                                     DrinkOrderRepository drinkOrderRepository,
+                                     PasswordEncoder passwordEncoder) {
         return args -> {
             if (merchantRepository.count() > 0) {
                 log.info("Skip data initialization");
@@ -80,12 +81,23 @@ public class DataInitializer {
                     coCreation
             ));
 
-            labUserRepository.save(new LabUser("Evelyn", UserRole.ADMIN,
-                    "https://images.8amlab.cn/avatars/admin-evelyn.png"));
-            labUserRepository.save(new LabUser("Noah", UserRole.MERCHANT,
-                    "https://images.8amlab.cn/avatars/merchant-noah.png"));
-            labUserRepository.save(new LabUser("Iris", UserRole.CUSTOMER,
-                    "https://images.8amlab.cn/avatars/customer-iris.png"));
+            LabUser admin = new LabUser("Evelyn", UserRole.ADMIN,
+                    "https://images.8amlab.cn/avatars/admin-evelyn.png");
+            admin.setUsername("admin");
+            admin.setPasswordHash(passwordEncoder.encode("admin123"));
+            labUserRepository.save(admin);
+
+            LabUser merchant = new LabUser("Noah", UserRole.MERCHANT,
+                    "https://images.8amlab.cn/avatars/merchant-noah.png");
+            merchant.setUsername("merchant");
+            merchant.setPasswordHash(passwordEncoder.encode("merchant123"));
+            labUserRepository.save(merchant);
+
+            LabUser customer = new LabUser("Iris", UserRole.CUSTOMER,
+                    "https://images.8amlab.cn/avatars/customer-iris.png");
+            customer.setUsername("iris");
+            customer.setPasswordHash(passwordEncoder.encode("iris123"));
+            labUserRepository.save(customer);
 
             List<Drink> drinks = drinkRepository.findAll();
 

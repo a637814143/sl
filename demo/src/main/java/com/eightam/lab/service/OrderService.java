@@ -1,9 +1,9 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.domain.Drink;
-import com.eightam.lab.domain.DrinkOrder;
-import com.eightam.lab.domain.Merchant;
-import com.eightam.lab.domain.OrderStatus;
+import com.eightam.lab.entity.Drink;
+import com.eightam.lab.entity.DrinkOrder;
+import com.eightam.lab.entity.Merchant;
+import com.eightam.lab.entity.OrderStatus;
 import com.eightam.lab.dto.CreateOrderRequest;
 import com.eightam.lab.dto.OrderOverview;
 import com.eightam.lab.dto.OrderResponse;

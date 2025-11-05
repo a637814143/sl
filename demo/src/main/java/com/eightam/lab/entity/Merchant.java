@@ -1,4 +1,4 @@
-package com.eightam.lab.domain;
+package com.eightam.lab.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
