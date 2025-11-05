@@ -18,13 +18,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/drinks")
+@RequestMapping("/api/admin/drinks")
 @CrossOrigin
-public class DrinkController {
+public class DrinkAdminController {
 
     private final DrinkService drinkService;
 
-    public DrinkController(DrinkService drinkService) {
+    public DrinkAdminController(DrinkService drinkService) {
         this.drinkService = drinkService;
     }
 

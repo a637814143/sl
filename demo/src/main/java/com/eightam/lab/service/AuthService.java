@@ -1,9 +1,10 @@
 package com.eightam.lab.service;
 
+import com.eightam.lab.domain.LabUser;
+import com.eightam.lab.domain.UserRole;
 import com.eightam.lab.dto.LoginRequest;
 import com.eightam.lab.dto.RegisterRequest;
 import com.eightam.lab.dto.UserResponse;
-import com.eightam.lab.entity.LabUser;
 import com.eightam.lab.repository.LabUserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,7 +34,7 @@ public class AuthService {
         user.setUsername(request.getUsername());
         user.setDisplayName(request.getDisplayName());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole("customer");
+        user.setRole(UserRole.CUSTOMER);
 
         LabUser saved = labUserRepository.save(user);
         return new UserResponse(saved.getId(), saved.getUsername(), saved.getDisplayName());

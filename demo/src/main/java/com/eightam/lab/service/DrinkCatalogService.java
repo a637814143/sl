@@ -3,9 +3,8 @@ package com.eightam.lab.service;
 import com.eightam.lab.domain.Drink;
 import com.eightam.lab.dto.DrinkSummary;
 import com.eightam.lab.repository.DrinkRepository;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
+import org.springframework.stereotype.Service;
 
 @Service
 public class DrinkCatalogService {
@@ -24,6 +23,7 @@ public class DrinkCatalogService {
     }
 
     private DrinkSummary toSummary(Drink drink) {
+        String merchantName = drink.getMerchant() != null ? drink.getMerchant().getName() : "8am实验室";
         return new DrinkSummary(
                 drink.getId(),
                 drink.getName(),
@@ -31,7 +31,7 @@ public class DrinkCatalogService {
                 drink.getDescription(),
                 drink.getImageUrl(),
                 drink.getFlavorProfile(),
-                drink.getMerchant().getName()
+                merchantName
         );
     }
 }

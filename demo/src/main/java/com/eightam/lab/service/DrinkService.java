@@ -1,15 +1,15 @@
 package com.eightam.lab.service;
 
+import com.eightam.lab.domain.Drink;
 import com.eightam.lab.dto.DrinkRequest;
 import com.eightam.lab.dto.DrinkResponse;
-import com.eightam.lab.entity.Drink;
 import com.eightam.lab.repository.DrinkRepository;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
 
 @Service
 public class DrinkService {
