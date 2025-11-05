@@ -7,7 +7,7 @@
 ```
 URL:      jdbc:mysql://localhost:3306/eightam_lab
 用户名:   root
-密码:     password
+密码:     （默认为空，可通过环境变量覆盖）
 ```
 
 可以通过环境变量覆盖这些默认值：
@@ -18,7 +18,7 @@ URL:      jdbc:mysql://localhost:3306/eightam_lab
 | `DB_PORT`       | 数据库端口           | `3306`         |
 | `DB_NAME`       | 数据库名             | `eightam_lab`  |
 | `DB_USERNAME`   | 数据库用户名         | `root`         |
-| `DB_PASSWORD`   | 数据库密码           | `password`     |
+| `DB_PASSWORD`   | 数据库密码           | （空字符串）    |
 
 首次运行前请自行在 MySQL 中创建对应的数据库实例：
 
