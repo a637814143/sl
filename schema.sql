@@ -7,11 +7,13 @@ DROP TABLE IF EXISTS lab_users;
 
 CREATE TABLE lab_users (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    username VARCHAR(64) NOT NULL,
     display_name VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL,
     avatar VARCHAR(255),
     CONSTRAINT pk_lab_users PRIMARY KEY (id),
-    CONSTRAINT uk_lab_users_display_name UNIQUE (display_name)
+    CONSTRAINT uk_lab_users_username UNIQUE (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE merchants (
@@ -30,7 +32,7 @@ CREATE TABLE drinks (
     description VARCHAR(1024),
     image_url VARCHAR(255),
     flavor_profile VARCHAR(255),
-    is_available TINYINT(1) NOT NULL DEFAULT 0,
+    is_available TINYINT(1) NOT NULL DEFAULT 1,
     merchant_id BIGINT,
     CONSTRAINT pk_drinks PRIMARY KEY (id),
     CONSTRAINT fk_drinks_merchants FOREIGN KEY (merchant_id) REFERENCES merchants (id)

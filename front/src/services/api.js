@@ -5,9 +5,10 @@ const client = axios.create({
   timeout: 8000
 })
 
-export const fetchDrinks = () => client.get('/drinks').then((res) => res.data)
-export const fetchMerchants = () => client.get('/merchants').then((res) => res.data)
-export const fetchOverview = () => client.get('/orders/overview').then((res) => res.data)
-export const fetchProfilesByRole = (role) =>
-  client.get(`/users/roles/${role}`).then((res) => res.data)
-export const createOrder = (payload) => client.post('/orders', payload).then((res) => res.data)
+export const listDrinks = () => client.get('/drinks').then((res) => res.data)
+export const createDrink = (payload) => client.post('/drinks', payload).then((res) => res.data)
+export const updateDrink = (id, payload) => client.put(`/drinks/${id}`, payload).then((res) => res.data)
+export const deleteDrink = (id) => client.delete(`/drinks/${id}`).then((res) => res.data)
+
+export const register = (payload) => client.post('/auth/register', payload).then((res) => res.data)
+export const login = (payload) => client.post('/auth/login', payload).then((res) => res.data)
