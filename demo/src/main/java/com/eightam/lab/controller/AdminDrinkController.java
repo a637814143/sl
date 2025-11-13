@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin/drinks")
 @CrossOrigin
-public class DrinkAdminController {
+public class AdminDrinkController {
 
     private final DrinkService drinkService;
 
-    public DrinkAdminController(DrinkService drinkService) {
+    public AdminDrinkController(DrinkService drinkService) {
         this.drinkService = drinkService;
     }
 

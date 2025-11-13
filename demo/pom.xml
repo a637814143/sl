@@ -14,10 +14,10 @@
     <artifactId>eightam-lab</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>8am-lab</name>
-    <description>8am实验室饮品电商平台</description>
+    <description>8am实验室咖啡与甜品电商平台</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>17</java.version>
     </properties>
 
     <dependencies>

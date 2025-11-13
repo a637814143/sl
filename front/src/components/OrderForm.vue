@@ -1,8 +1,8 @@
 <template>
   <section class="order">
     <header>
-      <h2>立即预约你的晨间饮品</h2>
-      <p>从下单到取杯平均只需 8 分钟。</p>
+      <h2>立即预约你的晨间咖啡或巴斯克</h2>
+      <p>从下单到取餐平均只需 8 分钟。</p>
     </header>
     <form @submit.prevent="handleSubmit">
       <div class="field">
@@ -14,16 +14,16 @@
         <input id="phone" v-model="form.contactPhone" type="tel" placeholder="请输入手机号" required />
       </div>
       <div class="field">
-        <label for="drink">选择风味</label>
+        <label for="drink">选择菜单</label>
         <select id="drink" v-model="form.drinkId" required>
-          <option disabled value="">请选择风味</option>
+          <option disabled value="">请选择菜单项</option>
           <option v-for="drink in drinks" :key="drink.id" :value="drink.id">
             {{ drink.name }} · ¥{{ Number(drink.price).toFixed(2) }}
           </option>
         </select>
       </div>
       <div class="field">
-        <label for="merchant">取杯门店</label>
+        <label for="merchant">取餐门店</label>
         <select id="merchant" v-model="form.merchantId" required>
           <option disabled value="">选择门店</option>
           <option v-for="merchant in merchants" :key="merchant.id" :value="merchant.id">
@@ -33,11 +33,11 @@
       </div>
       <div class="field field--inline">
         <div>
-          <label for="quantity">杯数</label>
+          <label for="quantity">份数</label>
           <input id="quantity" v-model.number="form.quantity" type="number" min="1" max="9" />
         </div>
         <div>
-          <label for="pickup">预计取杯</label>
+          <label for="pickup">预计取餐</label>
           <input id="pickup" v-model="form.pickupTime" type="time" />
         </div>
       </div>

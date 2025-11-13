@@ -48,7 +48,7 @@ public class DataInitializer {
                     "8am共创栈",
                     "138-0000-0002",
                     "深圳·后海万象城L3",
-                    "和创作者一起发明饮品风味"
+                    "和创作者一起发明咖啡与甜品风味"
             ));
 
             drinkRepository.save(new Drink(
@@ -62,21 +62,21 @@ public class DataInitializer {
             ));
 
             drinkRepository.save(new Drink(
-                    "小序乌龙拿铁",
-                    new BigDecimal("24.00"),
-                    "手焙乌龙与A2生乳调和，口感层层递进。",
-                    "https://images.8amlab.cn/drink-oolong-latte.png",
-                    "坚果·乳香·细腻泡沫",
+                    "黑芝麻豆乳拿铁",
+                    new BigDecimal("26.00"),
+                    "炭焙浓缩叠加黑芝麻酱与豆乳泡沫，厚实又顺滑。",
+                    "https://images.8amlab.cn/drink-sesame-latte.png",
+                    "坚果·豆乳·丝滑泡沫",
                     true,
                     labBar
             ));
 
             drinkRepository.save(new Drink(
-                    "白噪音柚茶",
-                    new BigDecimal("22.00"),
-                    "文火熬煮的蜜渍白柚与冷压茉莉，清爽不涩。",
-                    "https://images.8amlab.cn/drink-white-noise.png",
-                    "柑橘·花香·低糖",
+                    "流心巴斯克芝士",
+                    new BigDecimal("36.00"),
+                    "使用北海道奶油芝士，低温烘烤保留流心质地，适合搭配手冲。",
+                    "https://images.8amlab.cn/dessert-basque.png",
+                    "芝香·焦糖·轻咸",
                     true,
                     coCreation
             ));

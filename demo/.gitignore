@@ -14,9 +14,9 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+# Retain shared project configuration files in version control so the
+# IntelliJ builder can load the project structure without manual setup.
 *.iws
-*.iml
 *.ipr
 
 ### NetBeans ###

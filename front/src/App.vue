@@ -1,15 +1,72 @@
 <template>
   <div class="mini-app">
-    <header class="status-bar">8am 实验室 · 清晨饮品站</header>
+    <header class="status-bar">8am 实验室 · 清晨咖啡甜品站</header>
     <main class="content">
       <section v-if="activeTab === 'home'" class="panel">
         <div class="panel-header">
-          <h1 class="heading">今日灵感饮品</h1>
-          <p class="subheading">探索门店精选，随时加入你的晨间灵感单。</p>
+          <h1 class="heading">今日灵感咖啡甜品</h1>
+          <p class="subheading">甄选门店咖啡与巴斯克甜点，随时加入你的晨间灵感单。</p>
         </div>
+        <section class="hero-carousel">
+          <article class="hero-slide">
+            <span class="hero-kicker">咖啡 × 巴斯克</span>
+            <h2>清晨唤醒灵感</h2>
+            <p>从第一口咖啡到最后一块芝士蛋糕，让忙碌的一天也充满仪式感。</p>
+          </article>
+          <div class="hero-dots">
+            <span class="dot active"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+        </section>
+        <section class="home-section">
+          <header class="section-header">
+            <h2>菜单分类</h2>
+            <p>探索咖啡与甜品的灵感搭配</p>
+          </header>
+          <div class="category-grid">
+            <article v-for="category in homeCategories" :key="category.label" class="category-card">
+              <span class="category-icon" :style="{ background: category.accent }">{{ category.icon }}</span>
+              <div>
+                <h3>{{ category.label }}</h3>
+                <p>{{ category.description }}</p>
+              </div>
+            </article>
+          </div>
+        </section>
+        <section class="home-section">
+          <header class="section-header">
+            <h2>推荐咖啡 &amp; 甜品</h2>
+            <p>今晨值得一试的灵感搭配</p>
+          </header>
+          <div class="featured-grid">
+            <article v-for="drink in featuredDrinks" :key="`featured-${drink.id}`" class="featured-card">
+              <div class="featured-media" :style="withHero(drink.imageUrl)"></div>
+              <div class="featured-body">
+                <div class="featured-meta">
+                  <span class="featured-merchant">{{ drink.merchantName || '灵感门店' }}</span>
+                  <span class="featured-badge" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
+                </div>
+                <h3>{{ drink.name }}</h3>
+                <p>{{ drink.description || '这是一份等待命名的灵感配方。' }}</p>
+                <div class="featured-footer">
+                  <strong>¥ {{ Number(drink.price).toFixed(2) }}</strong>
+                  <span>热卖中</span>
+                </div>
+              </div>
+            </article>
+            <p v-if="!featuredDrinks.length" class="empty-hint">暂无推荐，稍后再来看看吧。</p>
+          </div>
+        </section>
+        <section v-if="moreDrinks.length" class="home-section">
+          <header class="section-header">
+            <h2>全部咖啡甜品</h2>
+            <p>完整菜单随时浏览</p>
+          </header>
+        </section>
         <div v-if="isAdmin && adminOverview" class="dashboard-grid">
           <div class="dashboard-card">
-            <h3>饮品数</h3>
+            <h3>菜单项数</h3>
             <span>{{ adminOverview.drinkCount }}</span>
           </div>
           <div class="dashboard-card">
@@ -39,7 +96,7 @@
             <span>{{ merchantSnapshot.preparing }}</span>
           </div>
           <div class="dashboard-card">
-            <h3>待取杯</h3>
+            <h3>待交付</h3>
             <span>{{ merchantSnapshot.ready }}</span>
           </div>
           <div class="dashboard-card">
@@ -47,15 +104,15 @@
             <span>{{ merchantSnapshot.completed }}</span>
           </div>
         </div>
-        <ul class="drink-cards">
-          <li v-for="drink in catalogDrinks" :key="drink.id" class="drink-card">
+        <ul class="drink-cards" v-if="moreDrinks.length">
+          <li v-for="drink in moreDrinks" :key="drink.id" class="drink-card">
             <div class="card-hero" :style="withHero(drink.imageUrl)">
               <span class="badge" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
               <button class="availability">来自 {{ drink.merchantName }}</button>
             </div>
             <div class="card-body">
               <h2>{{ drink.name }}</h2>
-              <p>{{ drink.description || '这是一杯等待命名的灵感。' }}</p>
+              <p>{{ drink.description || '这是一份等待命名的灵感配方。' }}</p>
               <strong class="price">¥ {{ Number(drink.price).toFixed(2) }}</strong>
             </div>
           </li>
@@ -71,13 +128,13 @@
         </template>
         <template v-else-if="isAdmin">
           <div class="panel-header">
-            <h1 class="heading">饮品管理</h1>
-            <p class="subheading">新增、编辑或下架饮品，保持菜单新鲜。</p>
+            <h1 class="heading">咖啡甜品管理</h1>
+            <p class="subheading">新增、编辑或下架菜单项，保持咖啡吧台和甜品柜常新。</p>
           </div>
           <form class="form" @submit.prevent="submitDrink">
             <div class="form-row">
-              <label>饮品名称</label>
-              <input v-model="drinkForm.name" type="text" placeholder="请输入饮品名称" />
+              <label>菜单名称</label>
+              <input v-model="drinkForm.name" type="text" placeholder="请输入咖啡或甜品名称" />
               <span class="error" v-if="drinkErrors.name">{{ drinkErrors.name }}</span>
             </div>
             <div class="form-row">
@@ -91,11 +148,11 @@
             </div>
             <div class="form-row">
               <label>图片地址</label>
-              <input v-model="drinkForm.imageUrl" type="url" placeholder="可选：饮品展示图" />
+              <input v-model="drinkForm.imageUrl" type="url" placeholder="可选：咖啡或甜品展示图" />
             </div>
             <div class="form-row">
-              <label>饮品描述</label>
-              <textarea v-model="drinkForm.description" rows="3" placeholder="一句话描述你的饮品故事"></textarea>
+              <label>菜单描述</label>
+              <textarea v-model="drinkForm.description" rows="3" placeholder="一句话描述你的咖啡或甜品故事"></textarea>
             </div>
             <div class="form-row inline">
               <label>当前状态</label>
@@ -106,7 +163,7 @@
               <span>{{ drinkForm.available ? '可售' : '停售' }}</span>
             </div>
             <div class="actions">
-              <button class="primary" type="submit">{{ drinkForm.id ? '更新饮品' : '新增饮品' }}</button>
+              <button class="primary" type="submit">{{ drinkForm.id ? '更新菜单项' : '新增菜单项' }}</button>
               <button class="ghost" type="button" v-if="drinkForm.id" @click="resetDrinkForm">取消编辑</button>
             </div>
           </form>
@@ -139,7 +196,7 @@
               <ul>
                 <li>顾客：{{ order.customerName }}</li>
                 <li>联系电话：{{ order.contactPhone }}</li>
-                <li>取杯时间：{{ order.pickupTime || '尽快' }}</li>
+                <li>取餐时间：{{ order.pickupTime || '尽快' }}</li>
                 <li>下单时间：{{ formatTime(order.createdAt) }}</li>
               </ul>
               <footer>
@@ -166,7 +223,7 @@
 
       <section v-else-if="activeTab === 'explore'" class="panel explore">
         <h1 class="heading">灵感实验室</h1>
-        <p class="subheading">以数据驱动下一杯灵感，看看今日运营脉搏。</p>
+        <p class="subheading">以数据驱动下一杯咖啡与下一块甜品，看看今日运营脉搏。</p>
         <div class="overview-grid" v-if="orderOverview">
           <div class="overview-card">
             <h3>新接单</h3>
@@ -177,7 +234,7 @@
             <span>{{ orderOverview.preparing }}</span>
           </div>
           <div class="overview-card">
-            <h3>待取杯</h3>
+            <h3>待交付</h3>
             <span>{{ orderOverview.ready }}</span>
           </div>
           <div class="overview-card">
@@ -311,6 +368,32 @@ const activeTab = ref('home')
 const adminDrinks = ref([])
 const catalogDrinks = ref([])
 const merchants = ref([])
+const homeCategories = [
+  {
+    label: '经典咖啡',
+    description: '拿铁、美式等经典配方，稳定发挥。',
+    icon: '☕',
+    accent: 'linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(14, 116, 144, 0.65))'
+  },
+  {
+    label: '创意冷萃',
+    description: '冷萃与风味糖浆交织，适合尝鲜。',
+    icon: '🧊',
+    accent: 'linear-gradient(135deg, rgba(165, 180, 252, 0.4), rgba(129, 140, 248, 0.65))'
+  },
+  {
+    label: '巴斯克芝士',
+    description: '每日现烤的流心芝士蛋糕。',
+    icon: '🧀',
+    accent: 'linear-gradient(135deg, rgba(45, 212, 191, 0.35), rgba(16, 185, 129, 0.55))'
+  },
+  {
+    label: '咖啡搭配',
+    description: '咖啡伴侣，甜度恰到好处。',
+    icon: '🍰',
+    accent: 'linear-gradient(135deg, rgba(250, 204, 21, 0.35), rgba(244, 114, 182, 0.45))'
+  }
+]
 const merchantBoard = reactive({
   merchantName: '',
   received: 0,
@@ -321,6 +404,8 @@ const merchantBoard = reactive({
 })
 const adminOverview = ref(null)
 const orderOverview = ref(null)
+const featuredDrinks = computed(() => catalogDrinks.value.slice(0, 4))
+const moreDrinks = computed(() => catalogDrinks.value.slice(4))
 
 const drinkForm = reactive({
   id: null,
@@ -390,8 +475,8 @@ const editDrink = (drink) => {
 
 const validateDrink = () => {
   const errors = {}
-  if (!drinkForm.name) errors.name = '请填写饮品名称'
-  if (!drinkForm.price || Number(drinkForm.price) <= 0) errors.price = '价格需大于0'
+  if (!drinkForm.name) errors.name = '请填写菜单名称'
+  if (!drinkForm.price || Number(drinkForm.price) <= 0) errors.price = '菜单价格需大于0'
   return errors
 }
 
@@ -426,7 +511,7 @@ const submitDrink = async () => {
 }
 
 const deleteDrink = async (id) => {
-  if (!confirm('确定要删除这款饮品吗？')) return
+  if (!confirm('确定要删除这款菜单项吗？')) return
   try {
     await removeDrink(id)
     await loadAdminResources()
@@ -587,7 +672,7 @@ const statusLabel = (status) => {
     case 'PREPARING':
       return '制作中'
     case 'READY':
-      return '待取杯'
+      return '待交付'
     case 'COMPLETED':
       return '已完成'
     default:
@@ -601,7 +686,7 @@ const nextStatuses = (status) => {
     PREPARING: [
       { code: 'READY', label: '制作完成' }
     ],
-    READY: [{ code: 'COMPLETED', label: '完成取杯' }],
+    READY: [{ code: 'COMPLETED', label: '完成交付' }],
     COMPLETED: []
   }
   return transitions[status] || []
@@ -673,6 +758,216 @@ onMounted(async () => {
   padding: 20px;
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(18px);
+}
+
+.hero-carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.hero-slide {
+  position: relative;
+  padding: 28px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.3), rgba(30, 64, 175, 0.45));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.hero-slide::after {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  pointer-events: none;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.hero-slide h2 {
+  margin: 16px 0 8px;
+  font-size: 1.5rem;
+}
+
+.hero-slide p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.85);
+  line-height: 1.5;
+}
+
+.hero-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.dot.active {
+  background: rgba(56, 189, 248, 0.9);
+  transform: scale(1.3);
+}
+
+.home-section {
+  margin-bottom: 28px;
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.section-header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.25);
+}
+
+.category-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: #0f172a;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
+}
+
+.category-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.category-card p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.9rem;
+}
+
+.featured-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.featured-card {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.35);
+}
+
+.featured-media {
+  border-radius: 14px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(59, 130, 246, 0.35);
+}
+
+.featured-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.featured-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.featured-merchant {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.featured-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.2);
+  color: rgba(125, 211, 252, 0.95);
+}
+
+.featured-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.featured-card p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.8);
+  line-height: 1.45;
+}
+
+.featured-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.featured-footer strong {
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.empty-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  color: rgba(148, 163, 184, 0.75);
 }
 
 .panel-header {
