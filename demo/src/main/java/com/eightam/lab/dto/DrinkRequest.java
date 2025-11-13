@@ -8,15 +8,15 @@ import java.math.BigDecimal;
 
 public class DrinkRequest {
 
-    @NotBlank(message = "饮品名称不能为空")
-    @Size(max = 128, message = "饮品名称长度需在128字符以内")
+    @NotBlank(message = "菜单名称不能为空")
+    @Size(max = 128, message = "菜单名称长度需在128字符以内")
     private String name;
 
-    @NotNull(message = "请设置饮品价格")
-    @DecimalMin(value = "0.0", inclusive = false, message = "饮品价格需大于0")
+    @NotNull(message = "请设置菜单价格")
+    @DecimalMin(value = "0.0", inclusive = false, message = "菜单价格需大于0")
     private BigDecimal price;
 
-    @Size(max = 512, message = "饮品描述需在512字符以内")
+    @Size(max = 512, message = "菜单描述需在512字符以内")
     private String description;
 
     @Size(max = 255, message = "图片地址需在255字符以内")

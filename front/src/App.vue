@@ -1,17 +1,17 @@
 <template>
   <div class="mini-app">
-    <header class="status-bar">8am 实验室 · 清晨饮品站</header>
+    <header class="status-bar">8am 实验室 · 清晨咖啡甜品站</header>
     <main class="content">
       <section v-if="activeTab === 'home'" class="panel">
         <div class="panel-header">
-          <h1 class="heading">今日灵感饮品</h1>
-          <p class="subheading">探索门店精选，随时加入你的晨间灵感单。</p>
+          <h1 class="heading">今日灵感咖啡甜品</h1>
+          <p class="subheading">甄选门店咖啡与巴斯克甜点，随时加入你的晨间灵感单。</p>
         </div>
         <section class="hero-carousel">
           <article class="hero-slide">
-            <span class="hero-kicker">咖啡精品</span>
+            <span class="hero-kicker">咖啡 × 巴斯克</span>
             <h2>清晨唤醒灵感</h2>
-            <p>从第一口开始的柔顺与回甘，让忙碌的一天也充满仪式感。</p>
+            <p>从第一口咖啡到最后一块芝士蛋糕，让忙碌的一天也充满仪式感。</p>
           </article>
           <div class="hero-dots">
             <span class="dot active"></span>
@@ -21,8 +21,8 @@
         </section>
         <section class="home-section">
           <header class="section-header">
-            <h2>商品分类</h2>
-            <p>探索不同风味的灵感搭配</p>
+            <h2>菜单分类</h2>
+            <p>探索咖啡与甜品的灵感搭配</p>
           </header>
           <div class="category-grid">
             <article v-for="category in homeCategories" :key="category.label" class="category-card">
@@ -36,8 +36,8 @@
         </section>
         <section class="home-section">
           <header class="section-header">
-            <h2>推荐商品</h2>
-            <p>今晨值得一试的灵感组合</p>
+            <h2>推荐咖啡 &amp; 甜品</h2>
+            <p>今晨值得一试的灵感搭配</p>
           </header>
           <div class="featured-grid">
             <article v-for="drink in featuredDrinks" :key="`featured-${drink.id}`" class="featured-card">
@@ -48,7 +48,7 @@
                   <span class="featured-badge" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
                 </div>
                 <h3>{{ drink.name }}</h3>
-                <p>{{ drink.description || '这是一杯等待命名的灵感。' }}</p>
+                <p>{{ drink.description || '这是一份等待命名的灵感配方。' }}</p>
                 <div class="featured-footer">
                   <strong>¥ {{ Number(drink.price).toFixed(2) }}</strong>
                   <span>热卖中</span>
@@ -60,13 +60,13 @@
         </section>
         <section v-if="moreDrinks.length" class="home-section">
           <header class="section-header">
-            <h2>全部饮品</h2>
+            <h2>全部咖啡甜品</h2>
             <p>完整菜单随时浏览</p>
           </header>
         </section>
         <div v-if="isAdmin && adminOverview" class="dashboard-grid">
           <div class="dashboard-card">
-            <h3>饮品数</h3>
+            <h3>菜单项数</h3>
             <span>{{ adminOverview.drinkCount }}</span>
           </div>
           <div class="dashboard-card">
@@ -96,7 +96,7 @@
             <span>{{ merchantSnapshot.preparing }}</span>
           </div>
           <div class="dashboard-card">
-            <h3>待取杯</h3>
+            <h3>待交付</h3>
             <span>{{ merchantSnapshot.ready }}</span>
           </div>
           <div class="dashboard-card">
@@ -112,7 +112,7 @@
             </div>
             <div class="card-body">
               <h2>{{ drink.name }}</h2>
-              <p>{{ drink.description || '这是一杯等待命名的灵感。' }}</p>
+              <p>{{ drink.description || '这是一份等待命名的灵感配方。' }}</p>
               <strong class="price">¥ {{ Number(drink.price).toFixed(2) }}</strong>
             </div>
           </li>
@@ -128,13 +128,13 @@
         </template>
         <template v-else-if="isAdmin">
           <div class="panel-header">
-            <h1 class="heading">饮品管理</h1>
-            <p class="subheading">新增、编辑或下架饮品，保持菜单新鲜。</p>
+            <h1 class="heading">咖啡甜品管理</h1>
+            <p class="subheading">新增、编辑或下架菜单项，保持咖啡吧台和甜品柜常新。</p>
           </div>
           <form class="form" @submit.prevent="submitDrink">
             <div class="form-row">
-              <label>饮品名称</label>
-              <input v-model="drinkForm.name" type="text" placeholder="请输入饮品名称" />
+              <label>菜单名称</label>
+              <input v-model="drinkForm.name" type="text" placeholder="请输入咖啡或甜品名称" />
               <span class="error" v-if="drinkErrors.name">{{ drinkErrors.name }}</span>
             </div>
             <div class="form-row">
@@ -148,11 +148,11 @@
             </div>
             <div class="form-row">
               <label>图片地址</label>
-              <input v-model="drinkForm.imageUrl" type="url" placeholder="可选：饮品展示图" />
+              <input v-model="drinkForm.imageUrl" type="url" placeholder="可选：咖啡或甜品展示图" />
             </div>
             <div class="form-row">
-              <label>饮品描述</label>
-              <textarea v-model="drinkForm.description" rows="3" placeholder="一句话描述你的饮品故事"></textarea>
+              <label>菜单描述</label>
+              <textarea v-model="drinkForm.description" rows="3" placeholder="一句话描述你的咖啡或甜品故事"></textarea>
             </div>
             <div class="form-row inline">
               <label>当前状态</label>
@@ -163,7 +163,7 @@
               <span>{{ drinkForm.available ? '可售' : '停售' }}</span>
             </div>
             <div class="actions">
-              <button class="primary" type="submit">{{ drinkForm.id ? '更新饮品' : '新增饮品' }}</button>
+              <button class="primary" type="submit">{{ drinkForm.id ? '更新菜单项' : '新增菜单项' }}</button>
               <button class="ghost" type="button" v-if="drinkForm.id" @click="resetDrinkForm">取消编辑</button>
             </div>
           </form>
@@ -196,7 +196,7 @@
               <ul>
                 <li>顾客：{{ order.customerName }}</li>
                 <li>联系电话：{{ order.contactPhone }}</li>
-                <li>取杯时间：{{ order.pickupTime || '尽快' }}</li>
+                <li>取餐时间：{{ order.pickupTime || '尽快' }}</li>
                 <li>下单时间：{{ formatTime(order.createdAt) }}</li>
               </ul>
               <footer>
@@ -223,7 +223,7 @@
 
       <section v-else-if="activeTab === 'explore'" class="panel explore">
         <h1 class="heading">灵感实验室</h1>
-        <p class="subheading">以数据驱动下一杯灵感，看看今日运营脉搏。</p>
+        <p class="subheading">以数据驱动下一杯咖啡与下一块甜品，看看今日运营脉搏。</p>
         <div class="overview-grid" v-if="orderOverview">
           <div class="overview-card">
             <h3>新接单</h3>
@@ -234,7 +234,7 @@
             <span>{{ orderOverview.preparing }}</span>
           </div>
           <div class="overview-card">
-            <h3>待取杯</h3>
+            <h3>待交付</h3>
             <span>{{ orderOverview.ready }}</span>
           </div>
           <div class="overview-card">
@@ -370,25 +370,25 @@ const catalogDrinks = ref([])
 const merchants = ref([])
 const homeCategories = [
   {
-    label: '经典',
+    label: '经典咖啡',
     description: '拿铁、美式等经典配方，稳定发挥。',
     icon: '☕',
     accent: 'linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(14, 116, 144, 0.65))'
   },
   {
-    label: '特调',
-    description: '灵感限定调配，适合尝鲜。',
-    icon: '✨',
+    label: '创意冷萃',
+    description: '冷萃与风味糖浆交织，适合尝鲜。',
+    icon: '🧊',
     accent: 'linear-gradient(135deg, rgba(165, 180, 252, 0.4), rgba(129, 140, 248, 0.65))'
   },
   {
-    label: '手冲',
-    description: '单品豆手冲，品味层次香气。',
-    icon: '🫘',
+    label: '巴斯克芝士',
+    description: '每日现烤的流心芝士蛋糕。',
+    icon: '🧀',
     accent: 'linear-gradient(135deg, rgba(45, 212, 191, 0.35), rgba(16, 185, 129, 0.55))'
   },
   {
-    label: '甜品',
+    label: '咖啡搭配',
     description: '咖啡伴侣，甜度恰到好处。',
     icon: '🍰',
     accent: 'linear-gradient(135deg, rgba(250, 204, 21, 0.35), rgba(244, 114, 182, 0.45))'
@@ -475,8 +475,8 @@ const editDrink = (drink) => {
 
 const validateDrink = () => {
   const errors = {}
-  if (!drinkForm.name) errors.name = '请填写饮品名称'
-  if (!drinkForm.price || Number(drinkForm.price) <= 0) errors.price = '价格需大于0'
+  if (!drinkForm.name) errors.name = '请填写菜单名称'
+  if (!drinkForm.price || Number(drinkForm.price) <= 0) errors.price = '菜单价格需大于0'
   return errors
 }
 
@@ -511,7 +511,7 @@ const submitDrink = async () => {
 }
 
 const deleteDrink = async (id) => {
-  if (!confirm('确定要删除这款饮品吗？')) return
+  if (!confirm('确定要删除这款菜单项吗？')) return
   try {
     await removeDrink(id)
     await loadAdminResources()
@@ -672,7 +672,7 @@ const statusLabel = (status) => {
     case 'PREPARING':
       return '制作中'
     case 'READY':
-      return '待取杯'
+      return '待交付'
     case 'COMPLETED':
       return '已完成'
     default:
@@ -686,7 +686,7 @@ const nextStatuses = (status) => {
     PREPARING: [
       { code: 'READY', label: '制作完成' }
     ],
-    READY: [{ code: 'COMPLETED', label: '完成取杯' }],
+    READY: [{ code: 'COMPLETED', label: '完成交付' }],
     COMPLETED: []
   }
   return transitions[status] || []

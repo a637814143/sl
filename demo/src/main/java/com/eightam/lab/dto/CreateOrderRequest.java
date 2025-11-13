@@ -9,11 +9,11 @@ public record CreateOrderRequest(
         String customerName,
         @NotBlank(message = "请输入联系电话")
         String contactPhone,
-        @NotNull(message = "请选择饮品")
+        @NotNull(message = "请选择菜单项")
         Long drinkId,
         @NotNull(message = "请选择门店")
         Long merchantId,
-        @Min(value = 1, message = "至少选择一杯")
+        @Min(value = 1, message = "至少选择一份")
         int quantity,
         String pickupTime
 ) {

@@ -26,20 +26,20 @@ const roles = [
   {
     tag: 'ADMIN',
     title: '管理员控制塔',
-    description: '沉浸式监控运营指标，掌控实验室每一个节奏点。',
+    description: '沉浸式监控运营指标，掌控咖啡吧台与甜品烤箱的节奏。',
     highlights: ['实时订单热力', '品类动销预测', '人群画像巡航']
   },
   {
     tag: 'MERCHANT',
     title: '商家灵感工作台',
-    description: '快速上新爆款饮品，协同供应链完成实验。',
-    highlights: ['门店口碑雷达', '风味库存监测', '晨间巡店提醒']
+    description: '快速上新人气咖啡与巴斯克，协同供应链完成实验。',
+    highlights: ['门店口碑雷达', '风味库存监测', '烘焙出炉提醒']
   },
   {
     tag: 'CUSTOMER',
     title: '用户感官旅程',
-    description: '轻松预约心仪口味，随时查看饮品制作进度。',
-    highlights: ['一键预约取杯', '风味口碑分享', '专属会员灵感']
+    description: '轻松预约心仪咖啡与甜品，随时查看制作进度。',
+    highlights: ['一键预约取餐', '风味口碑分享', '专属会员灵感']
   }
 ]
 </script>

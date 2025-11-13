@@ -30,7 +30,7 @@ public class DrinkService {
     @Transactional(readOnly = true)
     public DrinkResponse findById(Long id) {
         Drink drink = drinkRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "饮品不存在"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "菜单项不存在"));
         return toResponse(drink);
     }
 
@@ -44,7 +44,7 @@ public class DrinkService {
     @Transactional
     public DrinkResponse update(Long id, DrinkRequest request) {
         Drink drink = drinkRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "饮品不存在"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "菜单项不存在"));
         apply(drink, request);
         Drink saved = drinkRepository.save(drink);
         return toResponse(saved);
@@ -53,7 +53,7 @@ public class DrinkService {
     @Transactional
     public void delete(Long id) {
         if (!drinkRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "饮品不存在");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "菜单项不存在");
         }
         drinkRepository.deleteById(id);
     }
