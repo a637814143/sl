@@ -2,64 +2,121 @@
   <div class="mini-app">
     <header class="status-bar">8am 实验室 · 清晨饮品站</header>
     <main class="content">
-      <section v-if="activeTab === 'home'" class="panel">
-        <div class="panel-header">
-          <h1 class="heading">今日灵感饮品</h1>
-          <p class="subheading">探索门店精选，随时加入你的晨间灵感单。</p>
+      <section v-if="activeTab === 'home'" class="panel home-panel">
+        <div class="home-brand">
+          <span class="brand-badge">咖啡精品</span>
+          <p>8am 实验室 · 清晨饮品站</p>
         </div>
-        <div v-if="isAdmin && adminOverview" class="dashboard-grid">
-          <div class="dashboard-card">
+
+        <div class="hero-stage" role="list">
+          <article
+            v-for="(slide, index) in heroSlides"
+            :key="slide.title"
+            :class="['hero-slide', { active: index === activeHero }]"
+            role="listitem"
+            @mouseenter="pauseHeroCycle"
+            @mouseleave="startHeroCycle"
+          >
+            <div class="hero-visual" :style="heroSurface(slide)">
+              <span class="hero-tag">{{ slide.tag }}</span>
+            </div>
+            <div class="hero-copy">
+              <h1>{{ slide.title }}</h1>
+              <p>{{ slide.description }}</p>
+              <span class="hero-accent">{{ slide.accent }}</span>
+            </div>
+          </article>
+        </div>
+        <div class="hero-dots" role="tablist">
+          <button
+            v-for="(slide, index) in heroSlides"
+            :key="slide.title"
+            type="button"
+            :class="{ active: index === activeHero }"
+            :aria-label="`查看 ${slide.title}`"
+            @click="setHero(index)"
+          ></button>
+        </div>
+
+        <div v-if="isAdmin && adminOverview" class="home-summary-grid">
+          <div class="summary-card">
             <h3>饮品数</h3>
-            <span>{{ adminOverview.drinkCount }}</span>
+            <p>{{ adminOverview.drinkCount }}</p>
           </div>
-          <div class="dashboard-card">
+          <div class="summary-card">
             <h3>门店数</h3>
-            <span>{{ adminOverview.merchantCount }}</span>
+            <p>{{ adminOverview.merchantCount }}</p>
           </div>
-          <div class="dashboard-card">
+          <div class="summary-card">
             <h3>订单数</h3>
-            <span>{{ adminOverview.orderCount }}</span>
+            <p>{{ adminOverview.orderCount }}</p>
           </div>
-          <div class="dashboard-card">
+          <div class="summary-card">
             <h3>团队成员</h3>
-            <span>{{ adminOverview.userCount }}</span>
+            <p>{{ adminOverview.userCount }}</p>
           </div>
-          <div class="dashboard-card highlight">
+          <div class="summary-card highlight">
             <h3>人气口味</h3>
-            <span>{{ adminOverview.topDrink }}</span>
+            <p>{{ adminOverview.topDrink }}</p>
           </div>
         </div>
-        <div v-else-if="isMerchant && merchantSnapshot" class="dashboard-grid">
-          <div class="dashboard-card">
+        <div v-else-if="isMerchant && merchantSnapshot" class="home-summary-grid">
+          <div class="summary-card">
             <h3>待接单</h3>
-            <span>{{ merchantSnapshot.received }}</span>
+            <p>{{ merchantSnapshot.received }}</p>
           </div>
-          <div class="dashboard-card">
+          <div class="summary-card">
             <h3>制作中</h3>
-            <span>{{ merchantSnapshot.preparing }}</span>
+            <p>{{ merchantSnapshot.preparing }}</p>
           </div>
-          <div class="dashboard-card">
+          <div class="summary-card">
             <h3>待取杯</h3>
-            <span>{{ merchantSnapshot.ready }}</span>
+            <p>{{ merchantSnapshot.ready }}</p>
           </div>
-          <div class="dashboard-card">
+          <div class="summary-card">
             <h3>已完成</h3>
-            <span>{{ merchantSnapshot.completed }}</span>
+            <p>{{ merchantSnapshot.completed }}</p>
           </div>
         </div>
-        <ul class="drink-cards">
-          <li v-for="drink in catalogDrinks" :key="drink.id" class="drink-card">
-            <div class="card-hero" :style="withHero(drink.imageUrl)">
-              <span class="badge" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
-              <button class="availability">来自 {{ drink.merchantName }}</button>
-            </div>
-            <div class="card-body">
-              <h2>{{ drink.name }}</h2>
-              <p>{{ drink.description || '这是一杯等待命名的灵感。' }}</p>
-              <strong class="price">¥ {{ Number(drink.price).toFixed(2) }}</strong>
-            </div>
-          </li>
-        </ul>
+
+        <div class="home-section">
+          <header class="section-header">
+            <h2>商品分类</h2>
+            <p>灵感分类随心挑，每一杯都是独特体验。</p>
+          </header>
+          <div class="category-grid">
+            <article v-for="category in homeCategories" :key="category.label" class="category-card">
+              <span class="category-icon">{{ category.icon }}</span>
+              <div>
+                <h3>{{ category.label }}</h3>
+                <p>{{ category.description }}</p>
+              </div>
+              <span class="category-accent">{{ category.accent }}</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="home-section">
+          <header class="section-header">
+            <h2>推荐商品</h2>
+            <p>当季精选，来自各地门店的热销灵感。</p>
+          </header>
+          <div class="recommend-grid">
+            <article v-for="drink in featuredDrinks" :key="drink.id" class="recommend-card">
+              <div class="recommend-media" :style="withHero(drink.imageUrl)">
+                <span class="recommend-tag" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
+              </div>
+              <div class="recommend-info">
+                <h3>{{ drink.name }}</h3>
+                <p>{{ drink.description || '这是一杯等待命名的灵感。' }}</p>
+              </div>
+              <footer class="recommend-footer">
+                <span class="recommend-price">¥ {{ Number(drink.price).toFixed(2) }}</span>
+                <span class="recommend-merchant">{{ drink.merchantName }}</span>
+              </footer>
+            </article>
+          </div>
+        </div>
       </section>
 
       <section v-else-if="activeTab === 'order'" class="panel">
@@ -282,7 +339,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import OrderForm from './components/OrderForm.vue'
 import RoleSpotlight from './components/RoleSpotlight.vue'
 import {
@@ -301,6 +358,60 @@ import {
   updateMerchantOrderStatus
 } from './services/api'
 
+const heroSlides = [
+  {
+    title: '晨醒特调',
+    description: '低温冷萃搭配桂花和青柑，唤醒清晨味蕾。',
+    accent: '本周人气之选',
+    tag: 'Seasonal',
+    background:
+      'linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(59, 130, 246, 0.22)), url(https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=900&q=80)'
+  },
+  {
+    title: '手冲慢享',
+    description: '精选单品豆，手冲呈现花果香与甘甜回味。',
+    accent: '限量发售',
+    tag: 'Single Origin',
+    background:
+      'linear-gradient(135deg, rgba(129, 140, 248, 0.32), rgba(14, 165, 233, 0.28)), url(https://images.unsplash.com/photo-1459257868276-5e65389e2722?auto=format&fit=crop&w=900&q=80)'
+  },
+  {
+    title: '甜品联名',
+    description: '自制伯爵茶戚风与香草奶油，配对午后时光。',
+    accent: '咖啡搭配推荐',
+    tag: 'Pairing',
+    background:
+      'linear-gradient(135deg, rgba(236, 72, 153, 0.26), rgba(14, 165, 233, 0.22)), url(https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=900&q=80)'
+  }
+]
+
+const homeCategories = [
+  {
+    label: '经典',
+    description: '拿铁、美式等全天候热卖。',
+    accent: 'Classic',
+    icon: '☕'
+  },
+  {
+    label: '特调',
+    description: '灵感调饮，限定风味轮换。',
+    accent: 'Signature',
+    icon: '✨'
+  },
+  {
+    label: '手冲',
+    description: '单品产区与产季故事。',
+    accent: 'Pour Over',
+    icon: '🫘'
+  },
+  {
+    label: '甜品',
+    description: '咖啡搭配的甜蜜补给。',
+    accent: 'Dessert',
+    icon: '🍰'
+  }
+]
+
 const roles = [
   { label: '管理员', value: 'ADMIN' },
   { label: '商家', value: 'MERCHANT' },
@@ -308,6 +419,8 @@ const roles = [
 ]
 
 const activeTab = ref('home')
+const activeHero = ref(0)
+let heroTimer = null
 const adminDrinks = ref([])
 const catalogDrinks = ref([])
 const merchants = ref([])
@@ -361,8 +474,40 @@ const merchantSnapshot = computed(() =>
     : null
 )
 
+const featuredDrinks = computed(() => catalogDrinks.value.slice(0, 4))
+
+const heroSurface = (slide) => ({
+  background: slide.background,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center'
+})
+
+const setHero = (index) => {
+  activeHero.value = index
+  startHeroCycle()
+}
+
+const startHeroCycle = () => {
+  if (heroTimer) {
+    clearInterval(heroTimer)
+    heroTimer = null
+  }
+  if (heroSlides.length <= 1) return
+  heroTimer = setInterval(() => {
+    activeHero.value = (activeHero.value + 1) % heroSlides.length
+  }, 6000)
+}
+
+const pauseHeroCycle = () => {
+  if (heroTimer) {
+    clearInterval(heroTimer)
+    heroTimer = null
+  }
+}
+
 const withHero = (image) => {
-  if (!image) return ''
+  if (!image)
+    return 'background-image: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(30, 64, 175, 0.32));'
   return `background-image: url(${image});`
 }
 
@@ -635,11 +780,29 @@ watch(
   }
 )
 
+watch(
+  () => activeTab.value,
+  (tab) => {
+    if (tab === 'home') {
+      startHeroCycle()
+    } else {
+      pauseHeroCycle()
+    }
+  }
+)
+
 onMounted(async () => {
   try {
     await loadSharedResources()
+    startHeroCycle()
   } catch (error) {
     console.error('初始化数据失败', error)
+  }
+})
+
+onUnmounted(() => {
+  if (heroTimer) {
+    clearInterval(heroTimer)
   }
 })
 </script>
@@ -654,11 +817,13 @@ onMounted(async () => {
 }
 
 .status-bar {
-  padding: 16px 20px;
-  font-size: 0.9rem;
+  padding: 18px 20px;
+  font-size: 0.95rem;
   letter-spacing: 0.08em;
-  color: rgba(248, 250, 252, 0.7);
+  color: rgba(248, 250, 252, 0.75);
   text-transform: uppercase;
+  text-align: center;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .content {
@@ -673,6 +838,314 @@ onMounted(async () => {
   padding: 20px;
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(18px);
+}
+
+.home-panel {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.home-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.brand-badge {
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(30, 41, 59, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.1);
+}
+
+.home-brand p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.hero-stage {
+  position: relative;
+  min-height: 220px;
+  border-radius: 24px;
+  background: rgba(30, 41, 59, 0.7);
+  overflow: hidden;
+}
+
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: stretch;
+  gap: 20px;
+  padding: 28px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.hero-slide.active {
+  opacity: 1;
+  transform: translateY(0);
+  position: relative;
+}
+
+.hero-visual {
+  border-radius: 20px;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 16px;
+  min-height: 180px;
+}
+
+.hero-tag {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.65);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.hero-copy h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  letter-spacing: 0.02em;
+}
+
+.hero-copy p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.hero-accent {
+  font-size: 0.9rem;
+  color: rgba(96, 165, 250, 0.95);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero-dots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.hero-dots button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(148, 163, 184, 0.3);
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.hero-dots button.active {
+  background: rgba(96, 165, 250, 0.9);
+  transform: scale(1.2);
+}
+
+.home-summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.summary-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-card h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.summary-card p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(129, 140, 248, 0.2));
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.section-header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.82);
+}
+
+.category-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.category-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+
+.category-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.category-card:hover::after {
+  opacity: 1;
+}
+
+.category-icon {
+  font-size: 1.6rem;
+}
+
+.category-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.category-card p {
+  margin: 4px 0 0;
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 0.85rem;
+}
+
+.category-accent {
+  grid-column: 1 / -1;
+  justify-self: flex-end;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(96, 165, 250, 0.85);
+}
+
+.recommend-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.recommend-card {
+  background: rgba(30, 41, 59, 0.72);
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 260px;
+}
+
+.recommend-media {
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.recommend-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.8);
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.recommend-info {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.recommend-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.recommend-info p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 0.9rem;
+}
+
+.recommend-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 18px 18px;
+  font-size: 0.95rem;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.recommend-price {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.recommend-merchant {
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.8);
 }
 
 .panel-header {
