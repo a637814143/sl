@@ -7,6 +7,63 @@
           <h1 class="heading">今日灵感饮品</h1>
           <p class="subheading">探索门店精选，随时加入你的晨间灵感单。</p>
         </div>
+        <section class="hero-carousel">
+          <article class="hero-slide">
+            <span class="hero-kicker">咖啡精品</span>
+            <h2>清晨唤醒灵感</h2>
+            <p>从第一口开始的柔顺与回甘，让忙碌的一天也充满仪式感。</p>
+          </article>
+          <div class="hero-dots">
+            <span class="dot active"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+        </section>
+        <section class="home-section">
+          <header class="section-header">
+            <h2>商品分类</h2>
+            <p>探索不同风味的灵感搭配</p>
+          </header>
+          <div class="category-grid">
+            <article v-for="category in homeCategories" :key="category.label" class="category-card">
+              <span class="category-icon" :style="{ background: category.accent }">{{ category.icon }}</span>
+              <div>
+                <h3>{{ category.label }}</h3>
+                <p>{{ category.description }}</p>
+              </div>
+            </article>
+          </div>
+        </section>
+        <section class="home-section">
+          <header class="section-header">
+            <h2>推荐商品</h2>
+            <p>今晨值得一试的灵感组合</p>
+          </header>
+          <div class="featured-grid">
+            <article v-for="drink in featuredDrinks" :key="`featured-${drink.id}`" class="featured-card">
+              <div class="featured-media" :style="withHero(drink.imageUrl)"></div>
+              <div class="featured-body">
+                <div class="featured-meta">
+                  <span class="featured-merchant">{{ drink.merchantName || '灵感门店' }}</span>
+                  <span class="featured-badge" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
+                </div>
+                <h3>{{ drink.name }}</h3>
+                <p>{{ drink.description || '这是一杯等待命名的灵感。' }}</p>
+                <div class="featured-footer">
+                  <strong>¥ {{ Number(drink.price).toFixed(2) }}</strong>
+                  <span>热卖中</span>
+                </div>
+              </div>
+            </article>
+            <p v-if="!featuredDrinks.length" class="empty-hint">暂无推荐，稍后再来看看吧。</p>
+          </div>
+        </section>
+        <section v-if="moreDrinks.length" class="home-section">
+          <header class="section-header">
+            <h2>全部饮品</h2>
+            <p>完整菜单随时浏览</p>
+          </header>
+        </section>
         <div v-if="isAdmin && adminOverview" class="dashboard-grid">
           <div class="dashboard-card">
             <h3>饮品数</h3>
@@ -47,8 +104,8 @@
             <span>{{ merchantSnapshot.completed }}</span>
           </div>
         </div>
-        <ul class="drink-cards">
-          <li v-for="drink in catalogDrinks" :key="drink.id" class="drink-card">
+        <ul class="drink-cards" v-if="moreDrinks.length">
+          <li v-for="drink in moreDrinks" :key="drink.id" class="drink-card">
             <div class="card-hero" :style="withHero(drink.imageUrl)">
               <span class="badge" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
               <button class="availability">来自 {{ drink.merchantName }}</button>
@@ -311,6 +368,32 @@ const activeTab = ref('home')
 const adminDrinks = ref([])
 const catalogDrinks = ref([])
 const merchants = ref([])
+const homeCategories = [
+  {
+    label: '经典',
+    description: '拿铁、美式等经典配方，稳定发挥。',
+    icon: '☕',
+    accent: 'linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(14, 116, 144, 0.65))'
+  },
+  {
+    label: '特调',
+    description: '灵感限定调配，适合尝鲜。',
+    icon: '✨',
+    accent: 'linear-gradient(135deg, rgba(165, 180, 252, 0.4), rgba(129, 140, 248, 0.65))'
+  },
+  {
+    label: '手冲',
+    description: '单品豆手冲，品味层次香气。',
+    icon: '🫘',
+    accent: 'linear-gradient(135deg, rgba(45, 212, 191, 0.35), rgba(16, 185, 129, 0.55))'
+  },
+  {
+    label: '甜品',
+    description: '咖啡伴侣，甜度恰到好处。',
+    icon: '🍰',
+    accent: 'linear-gradient(135deg, rgba(250, 204, 21, 0.35), rgba(244, 114, 182, 0.45))'
+  }
+]
 const merchantBoard = reactive({
   merchantName: '',
   received: 0,
@@ -321,6 +404,8 @@ const merchantBoard = reactive({
 })
 const adminOverview = ref(null)
 const orderOverview = ref(null)
+const featuredDrinks = computed(() => catalogDrinks.value.slice(0, 4))
+const moreDrinks = computed(() => catalogDrinks.value.slice(4))
 
 const drinkForm = reactive({
   id: null,
@@ -673,6 +758,216 @@ onMounted(async () => {
   padding: 20px;
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(18px);
+}
+
+.hero-carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.hero-slide {
+  position: relative;
+  padding: 28px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.3), rgba(30, 64, 175, 0.45));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.hero-slide::after {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  pointer-events: none;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.hero-slide h2 {
+  margin: 16px 0 8px;
+  font-size: 1.5rem;
+}
+
+.hero-slide p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.85);
+  line-height: 1.5;
+}
+
+.hero-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.dot.active {
+  background: rgba(56, 189, 248, 0.9);
+  transform: scale(1.3);
+}
+
+.home-section {
+  margin-bottom: 28px;
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.section-header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.25);
+}
+
+.category-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: #0f172a;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
+}
+
+.category-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.category-card p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.9rem;
+}
+
+.featured-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.featured-card {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.35);
+}
+
+.featured-media {
+  border-radius: 14px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(59, 130, 246, 0.35);
+}
+
+.featured-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.featured-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.featured-merchant {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.featured-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.2);
+  color: rgba(125, 211, 252, 0.95);
+}
+
+.featured-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.featured-card p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.8);
+  line-height: 1.45;
+}
+
+.featured-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.featured-footer strong {
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.empty-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  color: rgba(148, 163, 184, 0.75);
 }
 
 .panel-header {
