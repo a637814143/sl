@@ -119,7 +119,7 @@
         </template>
       </section>
 
-      <section v-else-if="activeTab === 'explore'" class="panel explore">
+      <section v-else-if="activeTab === 'explore'" class="panel explore-panel">
         <CategoryShowcase
           :drinks="catalogDrinks"
           initial-category="DESSERT"
@@ -655,7 +655,7 @@ onMounted(async () => {
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px 96px;
+  padding: 12px 16px 8px;
 }
 
 .panel {
@@ -667,6 +667,12 @@ onMounted(async () => {
 }
 
 .panel.home-panel {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.panel.explore-panel {
   padding: 0;
   background: transparent;
   box-shadow: none;
