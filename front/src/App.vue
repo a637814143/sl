@@ -2,67 +2,22 @@
   <div class="mini-app">
     <header class="status-bar">8am 实验室 · 清晨饮品站</header>
     <main class="content">
-      <section v-if="activeTab === 'home'" class="panel">
-        <div class="panel-header">
-          <h1 class="heading">今日灵感饮品</h1>
-          <p class="subheading">探索门店精选，随时加入你的晨间灵感单。</p>
-        </div>
-        <div v-if="isAdmin && adminOverview" class="dashboard-grid">
-          <div class="dashboard-card">
-            <h3>饮品数</h3>
-            <span>{{ adminOverview.drinkCount }}</span>
-          </div>
-          <div class="dashboard-card">
-            <h3>门店数</h3>
-            <span>{{ adminOverview.merchantCount }}</span>
-          </div>
-          <div class="dashboard-card">
-            <h3>订单数</h3>
-            <span>{{ adminOverview.orderCount }}</span>
-          </div>
-          <div class="dashboard-card">
-            <h3>团队成员</h3>
-            <span>{{ adminOverview.userCount }}</span>
-          </div>
-          <div class="dashboard-card highlight">
-            <h3>人气口味</h3>
-            <span>{{ adminOverview.topDrink }}</span>
-          </div>
-        </div>
-        <div v-else-if="isMerchant && merchantSnapshot" class="dashboard-grid">
-          <div class="dashboard-card">
-            <h3>待接单</h3>
-            <span>{{ merchantSnapshot.received }}</span>
-          </div>
-          <div class="dashboard-card">
-            <h3>制作中</h3>
-            <span>{{ merchantSnapshot.preparing }}</span>
-          </div>
-          <div class="dashboard-card">
-            <h3>待取杯</h3>
-            <span>{{ merchantSnapshot.ready }}</span>
-          </div>
-          <div class="dashboard-card">
-            <h3>已完成</h3>
-            <span>{{ merchantSnapshot.completed }}</span>
-          </div>
-        </div>
-        <ul class="drink-cards">
-          <li v-for="drink in catalogDrinks" :key="drink.id" class="drink-card">
-            <div class="card-hero" :style="withHero(drink.imageUrl)">
-              <span class="badge" v-if="drink.flavorProfile">{{ drink.flavorProfile }}</span>
-              <button class="availability">来自 {{ drink.merchantName }}</button>
-            </div>
-            <div class="card-body">
-              <h2>{{ drink.name }}</h2>
-              <p>{{ drink.description || '这是一杯等待命名的灵感。' }}</p>
-              <strong class="price">¥ {{ Number(drink.price).toFixed(2) }}</strong>
-            </div>
-          </li>
-        </ul>
+      <section v-if="activeTab === 'home'" class="panel home-panel">
+        <HomeShowcase
+          :drinks="catalogDrinks"
+          :merchants="merchants"
+          :cart-items="sharedCartItems"
+          :cart-summary="sharedCartSummary"
+          :cart-total="sharedCartTotal"
+          :add-to-cart="addCartItem"
+          :increment-item="addCartItem"
+          :decrement-item="decrementCartItem"
+          :clear-cart="clearSharedCart"
+          @checkout="activeTab = 'order'"
+        />
       </section>
 
-      <section v-else-if="activeTab === 'order'" class="panel">
+      <section v-else-if="activeTab === 'order' && showWorkbench" class="panel">
         <template v-if="!currentUser">
           <div class="empty-state">
             <h2>请先登录</h2>
@@ -165,31 +120,18 @@
       </section>
 
       <section v-else-if="activeTab === 'explore'" class="panel explore">
-        <h1 class="heading">灵感实验室</h1>
-        <p class="subheading">以数据驱动下一杯灵感，看看今日运营脉搏。</p>
-        <div class="overview-grid" v-if="orderOverview">
-          <div class="overview-card">
-            <h3>新接单</h3>
-            <span>{{ orderOverview.received }}</span>
-          </div>
-          <div class="overview-card">
-            <h3>制作中</h3>
-            <span>{{ orderOverview.preparing }}</span>
-          </div>
-          <div class="overview-card">
-            <h3>待取杯</h3>
-            <span>{{ orderOverview.ready }}</span>
-          </div>
-          <div class="overview-card">
-            <h3>已完成</h3>
-            <span>{{ orderOverview.completed }}</span>
-          </div>
-          <div class="overview-card highlight">
-            <h3>热销推荐</h3>
-            <span>{{ orderOverview.topDrink }}</span>
-          </div>
-        </div>
-        <RoleSpotlight />
+        <CategoryShowcase
+          :drinks="catalogDrinks"
+          initial-category="DESSERT"
+          :cart-items="sharedCartItems"
+          :cart-summary="sharedCartSummary"
+          :cart-total="sharedCartTotal"
+          :add-to-cart="addCartItem"
+          :increment-item="addCartItem"
+          :decrement-item="decrementCartItem"
+          :clear-cart="clearSharedCart"
+          @checkout="activeTab = 'order'"
+        />
       </section>
 
       <section v-else class="panel profile">
@@ -260,14 +202,14 @@
       </section>
     </main>
 
-    <nav class="tabbar">
+    <nav class="tabbar" :class="{ compact: !showWorkbench }">
       <button :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">
         <span class="icon">🏠</span>
         <span>首页</span>
       </button>
-      <button :class="{ active: activeTab === 'order' }" @click="activeTab = 'order'">
+      <button v-if="showWorkbench" :class="{ active: activeTab === 'order' }" @click="activeTab = 'order'">
         <span class="icon">🧾</span>
-        <span>{{ isCustomer ? '下单' : '工作台' }}</span>
+        <span>工作台</span>
       </button>
       <button :class="{ active: activeTab === 'explore' }" @click="activeTab = 'explore'">
         <span class="icon">✨</span>
@@ -284,7 +226,8 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import OrderForm from './components/OrderForm.vue'
-import RoleSpotlight from './components/RoleSpotlight.vue'
+import HomeShowcase from './components/HomeShowcase.vue'
+import CategoryShowcase from './components/CategoryShowcase.vue'
 import {
   createDrink,
   deleteDrink as removeDrink,
@@ -319,6 +262,49 @@ const merchantBoard = reactive({
   completed: 0,
   orders: []
 })
+const sharedCart = reactive({})
+const sharedCartItems = computed(() => Object.values(sharedCart))
+const sharedCartCount = computed(() => sharedCartItems.value.reduce((sum, item) => sum + (item.quantity || 0), 0))
+const sharedCartTotal = computed(() =>
+  sharedCartItems.value.reduce((sum, item) => sum + Number(item.price || 0) * (item.quantity || 0), 0)
+)
+const sharedCartSummary = computed(() =>
+  sharedCartCount.value ? `共 ${sharedCartCount.value} 件 · ¥ ${sharedCartTotal.value.toFixed(2)}` : '购物车为空'
+)
+
+const normalizeCartEntry = (item = {}) => ({
+  id: item.id,
+  drinkId: item.drinkId ?? item.id,
+  name: item.name,
+  price: Number(item.price) || 0,
+  imageUrl: item.imageUrl || item.image,
+  merchantName: item.merchantName || '',
+  quantity: Number(item.quantity) || 0
+})
+
+const addCartItem = (item) => {
+  if (!item?.id) return
+  const payload = normalizeCartEntry(item)
+  const key = String(payload.id)
+  if (!sharedCart[key]) {
+    sharedCart[key] = { ...payload, quantity: 0 }
+  }
+  sharedCart[key].quantity += payload.quantity || 1
+}
+
+const decrementCartItem = (item) => {
+  if (!item?.id) return
+  const key = String(item.id)
+  if (!sharedCart[key]) return
+  sharedCart[key].quantity -= 1
+  if (sharedCart[key].quantity <= 0) {
+    delete sharedCart[key]
+  }
+}
+
+const clearSharedCart = () => {
+  Object.keys(sharedCart).forEach((key) => delete sharedCart[key])
+}
 const adminOverview = ref(null)
 const orderOverview = ref(null)
 
@@ -349,6 +335,7 @@ const currentUser = ref(null)
 const isAdmin = computed(() => currentUser.value?.role === 'ADMIN')
 const isMerchant = computed(() => currentUser.value?.role === 'MERCHANT')
 const isCustomer = computed(() => currentUser.value?.role === 'CUSTOMER')
+const showWorkbench = computed(() => isAdmin.value || isMerchant.value)
 const merchantSnapshot = computed(() =>
   isMerchant.value
     ? {
@@ -360,11 +347,6 @@ const merchantSnapshot = computed(() =>
       }
     : null
 )
-
-const withHero = (image) => {
-  if (!image) return ''
-  return `background-image: url(${image});`
-}
 
 const resetDrinkForm = () => {
   drinkForm.id = null
@@ -635,6 +617,15 @@ watch(
   }
 )
 
+watch(
+  () => showWorkbench.value,
+  (canAccess) => {
+    if (!canAccess && activeTab.value === 'order') {
+      activeTab.value = 'home'
+    }
+  }
+)
+
 onMounted(async () => {
   try {
     await loadSharedResources()
@@ -673,6 +664,12 @@ onMounted(async () => {
   padding: 20px;
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(18px);
+}
+
+.panel.home-panel {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .panel-header {
@@ -1126,6 +1123,7 @@ button.danger {
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(16px);
   border-top: 1px solid rgba(148, 163, 184, 0.15);
+  height: 64px;
 }
 
 .tabbar button {
@@ -1137,6 +1135,14 @@ button.danger {
   place-items: center;
   gap: 4px;
   font-size: 0.8rem;
+}
+
+.tabbar.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tabbar.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tabbar button.active {
