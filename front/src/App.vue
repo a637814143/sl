@@ -136,71 +136,88 @@
 
       <section v-else class="panel profile">
         <h1 class="heading">帐号中心</h1>
-        <p class="subheading">区分角色登录，体验完整的前后端联动。</p>
-        <div class="auth-card">
-          <div class="tabs">
-            <button :class="{ active: authMode === 'login' }" @click="setAuthMode('login')">登录</button>
-            <button :class="{ active: authMode === 'register' }" @click="setAuthMode('register')">注册</button>
-          </div>
-          <form class="form" @submit.prevent="submitAuth">
-            <div class="role-switcher" v-if="authMode === 'login'">
-              <button
-                v-for="role in roles"
-                :key="role.value"
-                type="button"
-                :class="{ active: loginRole === role.value }"
-                @click="setLoginRole(role.value)"
-              >
-                {{ role.label }}登录
-              </button>
-            </div>
-            <div class="form-row">
-              <label>用户名</label>
-              <input v-model="authForm.username" type="text" placeholder="请输入用户名" autocomplete="username" />
-              <span class="error" v-if="authErrors.username">{{ authErrors.username }}</span>
-            </div>
-            <div class="form-row" v-if="authMode === 'register'">
-              <label>昵称</label>
-              <input v-model="authForm.displayName" type="text" placeholder="用于展示的昵称" autocomplete="nickname" />
-              <span class="error" v-if="authErrors.displayName">{{ authErrors.displayName }}</span>
-            </div>
-            <div class="form-row">
-              <label>密码</label>
-              <input v-model="authForm.password" type="password" placeholder="请输入密码" autocomplete="current-password" />
-              <span class="error" v-if="authErrors.password">{{ authErrors.password }}</span>
-            </div>
-            <div class="form-row" v-if="authMode === 'register'">
-              <label>注册角色</label>
-              <select v-model="registerRole">
-                <option v-for="role in roles" :key="role.value" :value="role.value">{{ role.label }}</option>
-              </select>
-            </div>
-            <div class="form-row" v-if="authMode === 'register' && registerRole === 'MERCHANT'">
-              <label>关联门店</label>
-              <select v-model="authForm.merchantId">
-                <option disabled value="">请选择门店</option>
-                <option v-for="merchant in merchants" :key="merchant.id" :value="merchant.id">
-                  {{ merchant.name }} · {{ merchant.location }}
-                </option>
-              </select>
-              <span class="error" v-if="authErrors.merchantId">{{ authErrors.merchantId }}</span>
-            </div>
-            <div class="actions">
-              <button class="primary" type="submit">{{ authMode === 'login' ? '立即登录' : '立即注册' }}</button>
-              <button class="ghost" type="button" v-if="authMode === 'register'" @click="setAuthMode('login')">已有帐号？去登录</button>
-            </div>
-          </form>
-          <p class="feedback" v-if="authFeedback">{{ authFeedback }}</p>
-          <div class="current-user" v-if="currentUser">
-            <p>
-              当前登录：<strong>{{ currentUser.displayName }}</strong>（{{ currentUser.username }}） · 角色：{{ roleLabel(currentUser.role) }}
-            </p>
-            <p v-if="currentUser.merchantName">所属门店：{{ currentUser.merchantName }}</p>
-            <button class="ghost" type="button" @click="logout">退出登录</button>
-          </div>
+        <p class="subheading">
+          {{ currentUser ? '查看当前身份信息，或随时退出登录。' : '登录窗口已覆盖主界面，请先完成登录或注册。' }}
+        </p>
+        <div v-if="currentUser" class="current-user">
+          <p>
+            当前登录：<strong>{{ currentUser.displayName }}</strong>（{{ currentUser.username }}） · 角色：{{ roleLabel(currentUser.role) }}
+          </p>
+          <p v-if="currentUser.merchantName">所属门店：{{ currentUser.merchantName }}</p>
+          <button class="ghost" type="button" @click="logout">退出登录</button>
+        </div>
+        <div v-else class="pending-login">
+          <p>系统已自动弹出登录面板，请先完成登录后再浏览其它内容。</p>
+          <small>若未看到登录窗，可刷新或重新打开小程序。</small>
         </div>
       </section>
     </main>
+
+    <transition name="gate-fade">
+      <div v-if="!currentUser" class="login-gate" role="dialog" aria-modal="true">
+        <div class="gate-mask"></div>
+        <div class="login-panel">
+          <h2>欢迎来到 8AM 灵感室</h2>
+          <p class="gate-desc">请先登录或注册，完成身份确认后即可浏览全部内容。</p>
+          <div class="auth-card gate-card">
+            <div class="tabs">
+              <button :class="{ active: authMode === 'login' }" @click="setAuthMode('login')">登录</button>
+              <button :class="{ active: authMode === 'register' }" @click="setAuthMode('register')">注册</button>
+            </div>
+            <form class="form" @submit.prevent="submitAuth">
+              <div class="role-switcher" v-if="authMode === 'login'">
+                <button
+                  v-for="role in roles"
+                  :key="role.value"
+                  type="button"
+                  :class="{ active: loginRole === role.value }"
+                  @click="setLoginRole(role.value)"
+                >
+                  {{ role.label }}登录
+                </button>
+              </div>
+              <div class="form-row">
+                <label>用户名</label>
+                <input v-model="authForm.username" type="text" placeholder="请输入用户名" autocomplete="username" />
+                <span class="error" v-if="authErrors.username">{{ authErrors.username }}</span>
+              </div>
+              <div class="form-row" v-if="authMode === 'register'">
+                <label>昵称</label>
+                <input v-model="authForm.displayName" type="text" placeholder="用于展示的昵称" autocomplete="nickname" />
+                <span class="error" v-if="authErrors.displayName">{{ authErrors.displayName }}</span>
+              </div>
+              <div class="form-row">
+                <label>密码</label>
+                <input v-model="authForm.password" type="password" placeholder="请输入密码" autocomplete="current-password" />
+                <span class="error" v-if="authErrors.password">{{ authErrors.password }}</span>
+              </div>
+              <div class="form-row" v-if="authMode === 'register'">
+                <label>注册角色</label>
+                <select v-model="registerRole">
+                  <option v-for="role in roles" :key="role.value" :value="role.value">{{ role.label }}</option>
+                </select>
+              </div>
+              <div class="form-row" v-if="authMode === 'register' && registerRole === 'MERCHANT'">
+                <label>关联门店</label>
+                <select v-model="authForm.merchantId">
+                  <option disabled value="">请选择门店</option>
+                  <option v-for="merchant in merchants" :key="merchant.id" :value="merchant.id">
+                    {{ merchant.name }} · {{ merchant.location }}
+                  </option>
+                </select>
+                <span class="error" v-if="authErrors.merchantId">{{ authErrors.merchantId }}</span>
+              </div>
+              <div class="actions">
+                <button class="primary" type="submit">{{ authMode === 'login' ? '立即登录' : '立即注册' }}</button>
+                <button class="ghost" type="button" v-if="authMode === 'register'" @click="setAuthMode('login')">已有帐号？去登录</button>
+              </div>
+            </form>
+            <p class="feedback" v-if="authFeedback">{{ authFeedback }}</p>
+          </div>
+          <p class="gate-note">完成登录后将自动关闭此窗口。</p>
+        </div>
+      </div>
+    </transition>
 
     <nav class="tabbar" :class="{ compact: !showWorkbench }">
       <button :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">
@@ -272,22 +289,36 @@ const sharedCartSummary = computed(() =>
   sharedCartCount.value ? `共 ${sharedCartCount.value} 件 · ¥ ${sharedCartTotal.value.toFixed(2)}` : '购物车为空'
 )
 
-const normalizeCartEntry = (item = {}) => ({
-  id: item.id,
-  drinkId: item.drinkId ?? item.id,
-  name: item.name,
-  price: Number(item.price) || 0,
-  imageUrl: item.imageUrl || item.image,
-  merchantName: item.merchantName || '',
-  quantity: Number(item.quantity) || 0
-})
+const normalizeCartEntry = (item = {}) => {
+  const signature = item.cartSignature || item.id || item.drinkId
+  return {
+    id: signature,
+    cartSignature: signature,
+    drinkId: item.drinkId ?? item.id ?? signature,
+    name: item.name,
+    price: Number(item.price) || 0,
+    imageUrl: item.imageUrl || item.image,
+    merchantName: item.merchantName || '',
+    tag: item.tag,
+    customSummary: item.customSummary || '',
+    customizations: item.customizations || null,
+    quantity: Number(item.quantity) || 0
+  }
+}
 
 const addCartItem = (item) => {
-  if (!item?.id) return
+  if (!item) return
   const payload = normalizeCartEntry(item)
+  if (!payload.id) return
   const key = String(payload.id)
   if (!sharedCart[key]) {
     sharedCart[key] = { ...payload, quantity: 0 }
+  }
+  if (payload.customSummary) {
+    sharedCart[key].customSummary = payload.customSummary
+  }
+  if (payload.customizations) {
+    sharedCart[key].customizations = payload.customizations
   }
   sharedCart[key].quantity += payload.quantity || 1
 }
@@ -1117,6 +1148,75 @@ button.danger {
   padding: 16px;
   border-radius: 14px;
   background: rgba(30, 41, 59, 0.6);
+}
+
+.pending-login {
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  border-radius: 14px;
+  padding: 20px;
+  color: rgba(226, 232, 240, 0.85);
+  background: rgba(30, 41, 59, 0.35);
+  display: grid;
+  gap: 6px;
+}
+
+.login-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gate-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.8);
+  backdrop-filter: blur(12px);
+}
+
+.login-panel {
+  position: relative;
+  width: min(520px, 94vw);
+  padding: 32px 28px 36px;
+  border-radius: 28px;
+  border: 1px solid rgba(226, 232, 240, 0.12);
+  background: rgba(15, 23, 42, 0.95);
+  box-shadow: 0 35px 90px rgba(2, 6, 23, 0.65);
+  display: grid;
+  gap: 18px;
+}
+
+.login-panel h2 {
+  margin: 0;
+}
+
+.gate-desc {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.gate-note {
+  margin: 0;
+  text-align: center;
+  color: rgba(148, 163, 184, 0.75);
+  font-size: 0.85rem;
+}
+
+.gate-card {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.gate-fade-enter-active,
+.gate-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.gate-fade-enter-from,
+.gate-fade-leave-to {
+  opacity: 0;
 }
 
 .tabbar {
