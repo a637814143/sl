@@ -134,90 +134,124 @@
         />
       </section>
 
-      <section v-else class="panel profile">
-        <h1 class="heading">帐号中心</h1>
-        <p class="subheading">
-          {{ currentUser ? '查看当前身份信息，或随时退出登录。' : '登录窗口已覆盖主界面，请先完成登录或注册。' }}
-        </p>
-        <div v-if="currentUser" class="current-user">
+      <section v-else-if="activeTab === 'profile'" class="panel profile">
+        <div class="profile-hero">
+          <div class="brand-mark">
+            <img :src="brandLogo" alt="8AM logo" />
+            <div class="brand-copy">
+              <p class="brand-label">8AM 灵感室</p>
+              <small>咖啡 · 巴斯克 · 灵感实验</small>
+            </div>
+          </div>
+          <div class="hero-user">
+            <div class="avatar-shell">
+              {{ currentUser ? (currentUser.displayName || currentUser.username).slice(0, 1) : '访' }}
+            </div>
+            <div>
+              <p class="hero-greeting">{{ heroGreeting }}</p>
+              <small>{{ currentUser ? heroSubtitle : '未登录 · 游客模式' }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-highlights">
+          <article v-for="card in profileHighlights" :key="card.label">
+            <p class="card-label">{{ card.label }}</p>
+            <strong>{{ card.value }}</strong>
+            <span>{{ card.desc }}</span>
+          </article>
+        </div>
+
+        <div class="profile-actions">
+          <button
+            v-for="item in profileActions"
+            :key="item.key"
+            type="button"
+            @click="handleProfileAction(item.key)"
+          >
+            <div class="action-icon">{{ item.icon }}</div>
+            <div class="action-info">
+              <p>{{ item.label }}</p>
+              <small>{{ item.desc }}</small>
+            </div>
+            <span class="action-arrow">›</span>
+          </button>
+        </div>
+
+        <div v-if="currentUser" class="current-user detail-card">
           <p>
             当前登录：<strong>{{ currentUser.displayName }}</strong>（{{ currentUser.username }}） · 角色：{{ roleLabel(currentUser.role) }}
           </p>
           <p v-if="currentUser.merchantName">所属门店：{{ currentUser.merchantName }}</p>
           <button class="ghost" type="button" @click="logout">退出登录</button>
         </div>
-        <div v-else class="pending-login">
-          <p>系统已自动弹出登录面板，请先完成登录后再浏览其它内容。</p>
-          <small>若未看到登录窗，可刷新或重新打开小程序。</small>
+        <div v-else class="auth-card profile-auth compact">
+          <p class="cta-hint">登录后可同步订单、领取优惠券</p>
+          <button class="primary gate-cta" type="button" @click="activeTab = 'profileLogin'">立即登录</button>
+        </div>
+      </section>
+
+      <section v-else-if="activeTab === 'profileLogin'" class="panel profile auth-full">
+        <button class="ghost back-link" type="button" @click="activeTab = 'profile'">‹ 返回我的</button>
+        <div class="auth-card profile-auth">
+          <div class="tabs">
+            <button :class="{ active: authMode === 'login' }" @click="setAuthMode('login')">登录</button>
+            <button :class="{ active: authMode === 'register' }" @click="setAuthMode('register')">注册</button>
+          </div>
+          <form class="form" @submit.prevent="submitAuth">
+            <div class="role-switcher" v-if="authMode === 'login'">
+              <button
+                v-for="role in roles"
+                :key="role.value"
+                type="button"
+                :class="{ active: loginRole === role.value }"
+                @click="setLoginRole(role.value)"
+              >
+                {{ role.label }}登录
+              </button>
+            </div>
+            <div class="form-row">
+              <label>用户名</label>
+              <input v-model="authForm.username" type="text" placeholder="请输入用户名" autocomplete="username" />
+              <span class="error" v-if="authErrors.username">{{ authErrors.username }}</span>
+            </div>
+            <div class="form-row" v-if="authMode === 'register'">
+              <label>昵称</label>
+              <input v-model="authForm.displayName" type="text" placeholder="用于展示的昵称" autocomplete="nickname" />
+              <span class="error" v-if="authErrors.displayName">{{ authErrors.displayName }}</span>
+            </div>
+            <div class="form-row">
+              <label>密码</label>
+              <input v-model="authForm.password" type="password" placeholder="请输入密码" autocomplete="current-password" />
+              <span class="error" v-if="authErrors.password">{{ authErrors.password }}</span>
+            </div>
+            <div class="form-row" v-if="authMode === 'register'">
+              <label>注册角色</label>
+              <select v-model="registerRole">
+                <option v-for="role in roles" :key="role.value" :value="role.value">{{ role.label }}</option>
+              </select>
+            </div>
+            <div class="form-row" v-if="authMode === 'register' && registerRole === 'MERCHANT'">
+              <label>关联门店</label>
+              <select v-model="authForm.merchantId">
+                <option disabled value="">请选择门店</option>
+                <option v-for="merchant in merchants" :key="merchant.id" :value="merchant.id">
+                  {{ merchant.name }} · {{ merchant.location }}
+                </option>
+              </select>
+              <span class="error" v-if="authErrors.merchantId">{{ authErrors.merchantId }}</span>
+            </div>
+            <div class="actions">
+              <button class="primary gate-cta" type="submit">{{ authMode === 'login' ? '立即登录' : '立即注册' }}</button>
+              <button class="ghost" type="button" v-if="authMode === 'register'" @click="setAuthMode('login')">已有帐号？去登录</button>
+            </div>
+          </form>
+          <p class="feedback" v-if="authFeedback">{{ authFeedback }}</p>
         </div>
       </section>
     </main>
 
-    <transition name="gate-fade">
-      <div v-if="!currentUser" class="login-gate" role="dialog" aria-modal="true">
-        <div class="gate-mask"></div>
-        <div class="login-panel">
-          <h2>欢迎来到 8AM 灵感室</h2>
-          <p class="gate-desc">请先登录或注册，完成身份确认后即可浏览全部内容。</p>
-          <div class="auth-card gate-card">
-            <div class="tabs">
-              <button :class="{ active: authMode === 'login' }" @click="setAuthMode('login')">登录</button>
-              <button :class="{ active: authMode === 'register' }" @click="setAuthMode('register')">注册</button>
-            </div>
-            <form class="form" @submit.prevent="submitAuth">
-              <div class="role-switcher" v-if="authMode === 'login'">
-                <button
-                  v-for="role in roles"
-                  :key="role.value"
-                  type="button"
-                  :class="{ active: loginRole === role.value }"
-                  @click="setLoginRole(role.value)"
-                >
-                  {{ role.label }}登录
-                </button>
-              </div>
-              <div class="form-row">
-                <label>用户名</label>
-                <input v-model="authForm.username" type="text" placeholder="请输入用户名" autocomplete="username" />
-                <span class="error" v-if="authErrors.username">{{ authErrors.username }}</span>
-              </div>
-              <div class="form-row" v-if="authMode === 'register'">
-                <label>昵称</label>
-                <input v-model="authForm.displayName" type="text" placeholder="用于展示的昵称" autocomplete="nickname" />
-                <span class="error" v-if="authErrors.displayName">{{ authErrors.displayName }}</span>
-              </div>
-              <div class="form-row">
-                <label>密码</label>
-                <input v-model="authForm.password" type="password" placeholder="请输入密码" autocomplete="current-password" />
-                <span class="error" v-if="authErrors.password">{{ authErrors.password }}</span>
-              </div>
-              <div class="form-row" v-if="authMode === 'register'">
-                <label>注册角色</label>
-                <select v-model="registerRole">
-                  <option v-for="role in roles" :key="role.value" :value="role.value">{{ role.label }}</option>
-                </select>
-              </div>
-              <div class="form-row" v-if="authMode === 'register' && registerRole === 'MERCHANT'">
-                <label>关联门店</label>
-                <select v-model="authForm.merchantId">
-                  <option disabled value="">请选择门店</option>
-                  <option v-for="merchant in merchants" :key="merchant.id" :value="merchant.id">
-                    {{ merchant.name }} · {{ merchant.location }}
-                  </option>
-                </select>
-                <span class="error" v-if="authErrors.merchantId">{{ authErrors.merchantId }}</span>
-              </div>
-              <div class="actions">
-                <button class="primary" type="submit">{{ authMode === 'login' ? '立即登录' : '立即注册' }}</button>
-                <button class="ghost" type="button" v-if="authMode === 'register'" @click="setAuthMode('login')">已有帐号？去登录</button>
-              </div>
-            </form>
-            <p class="feedback" v-if="authFeedback">{{ authFeedback }}</p>
-          </div>
-          <p class="gate-note">完成登录后将自动关闭此窗口。</p>
-        </div>
-      </div>
-    </transition>
+    
 
     <nav class="tabbar" :class="{ compact: !showWorkbench }">
       <button :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">
@@ -232,9 +266,9 @@
         <span class="icon">✨</span>
         <span>灵感</span>
       </button>
-      <button :class="{ active: activeTab === 'profile' }" @click="activeTab = 'profile'">
+      <button :class="{ active: activeTab === 'profile' || activeTab === 'profileLogin' }" @click="activeTab = 'profile'">
         <span class="icon">👤</span>
-        <span>主页</span>
+        <span>我的</span>
       </button>
     </nav>
   </div>
@@ -242,6 +276,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+const brandLogo = new URL('./assets/logo.png', import.meta.url).href
 import OrderForm from './components/OrderForm.vue'
 import HomeShowcase from './components/HomeShowcase.vue'
 import CategoryShowcase from './components/CategoryShowcase.vue'
@@ -379,6 +414,69 @@ const merchantSnapshot = computed(() =>
     : null
 )
 
+const heroGreeting = computed(() =>
+  currentUser.value ? `您好，${currentUser.value.displayName}` : '欢迎来到 8AM 灵感室'
+)
+
+const heroSubtitle = computed(() =>
+  currentUser.value ? `角色 · ${roleLabel(currentUser.value.role)}` : '游客模式 · 浏览精选内容'
+)
+
+const profileHighlights = computed(() => {
+  const wallet = Number(currentUser.value?.wallet ?? 0)
+  const coupons = currentUser.value?.couponCount ?? 3
+  const points = currentUser.value?.points ?? 280
+  return [
+    {
+      label: '余额',
+      value: `¥ ${wallet.toFixed(2)}`,
+      desc: '储值卡金额'
+    },
+    {
+      label: '优惠券',
+      value: `${coupons} 张`,
+      desc: '门店/线上通用'
+    },
+    {
+      label: '积分',
+      value: points,
+      desc: '可兑换灵感好物'
+    }
+  ]
+})
+
+const profileActions = [
+  { key: 'orders', icon: '🧾', label: '订单中心', desc: '查看制作进度与历史' },
+  { key: 'info', icon: '👤', label: '个人资料', desc: '昵称、角色、门店' },
+  { key: 'language', icon: '🌐', label: '语言设置', desc: '中文 / English' },
+  { key: 'about', icon: '✨', label: '关于我们', desc: '品牌故事与灵感' }
+]
+
+const handleProfileAction = (key) => {
+  if (key === 'orders') {
+    activeTab.value = 'order'
+    return
+  }
+  if (!currentUser.value) {
+    authFeedback.value = '登录后即可使用该功能'
+    setAuthMode('login')
+    return
+  }
+  switch (key) {
+    case 'info':
+      authFeedback.value = '资料编辑即将上线'
+      break
+    case 'language':
+      authFeedback.value = '多语言切换即将上线'
+      break
+    case 'about':
+      authFeedback.value = '8AM 实验室 · 咖啡巴斯克'
+      break
+    default:
+      break
+  }
+}
+
 const resetDrinkForm = () => {
   drinkForm.id = null
   drinkForm.name = ''
@@ -501,6 +599,9 @@ const submitAuth = async () => {
       authFeedback.value = '注册成功，已为你登录。'
       authForm.password = ''
       await afterAuth(user)
+      if (activeTab.value === 'profileLogin') {
+        activeTab.value = 'profile'
+      }
     } else {
       const payload = {
         username: authForm.username,
@@ -512,6 +613,9 @@ const submitAuth = async () => {
       authFeedback.value = `欢迎回来，${user.displayName}`
       authForm.password = ''
       await afterAuth(user)
+      if (activeTab.value === 'profileLogin') {
+        activeTab.value = 'profile'
+      }
     }
   } catch (error) {
     authFeedback.value = error.response?.data?.message || '操作失败，请稍后再试'
@@ -523,6 +627,9 @@ const logout = () => {
   loginRole.value = 'CUSTOMER'
   registerRole.value = 'CUSTOMER'
   authFeedback.value = ''
+  if (activeTab.value === 'profileLogin') {
+    activeTab.value = 'profile'
+  }
   resetDrinkForm()
   adminDrinks.value = []
   adminOverview.value = null
@@ -686,7 +793,7 @@ onMounted(async () => {
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px 8px;
+  padding: 12px 16px 80px;
 }
 
 .panel {
@@ -1150,73 +1257,10 @@ button.danger {
   background: rgba(30, 41, 59, 0.6);
 }
 
-.pending-login {
-  border: 1px dashed rgba(148, 163, 184, 0.35);
-  border-radius: 14px;
-  padding: 20px;
-  color: rgba(226, 232, 240, 0.85);
-  background: rgba(30, 41, 59, 0.35);
-  display: grid;
-  gap: 6px;
-}
-
-.login-gate {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.gate-mask {
-  position: absolute;
-  inset: 0;
-  background: rgba(2, 6, 23, 0.8);
-  backdrop-filter: blur(12px);
-}
-
-.login-panel {
-  position: relative;
-  width: min(520px, 94vw);
-  padding: 32px 28px 36px;
-  border-radius: 28px;
-  border: 1px solid rgba(226, 232, 240, 0.12);
-  background: rgba(15, 23, 42, 0.95);
-  box-shadow: 0 35px 90px rgba(2, 6, 23, 0.65);
-  display: grid;
-  gap: 18px;
-}
-
-.login-panel h2 {
-  margin: 0;
-}
-
-.gate-desc {
-  margin: 0;
-  color: rgba(148, 163, 184, 0.85);
-}
-
-.gate-note {
-  margin: 0;
-  text-align: center;
-  color: rgba(148, 163, 184, 0.75);
-  font-size: 0.85rem;
-}
-
-.gate-card {
-  border-color: rgba(148, 163, 184, 0.32);
-  background: rgba(15, 23, 42, 0.8);
-}
-
-.gate-fade-enter-active,
-.gate-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.gate-fade-enter-from,
-.gate-fade-leave-to {
-  opacity: 0;
+.detail-card {
+  margin-top: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
 }
 
 .tabbar {
@@ -1277,4 +1321,188 @@ button.danger {
     overflow: hidden;
   }
 }
+
+.profile-hero {
+  position: relative;
+  border-radius: 22px;
+  padding: 20px;
+  background: radial-gradient(circle at 5% 20%, rgba(59, 130, 246, 0.25), transparent 45%),
+    radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.25), transparent 40%),
+    rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark img {
+  width: 68px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid rgba(248, 250, 252, 0.9);
+  background: rgba(14, 165, 233, 0.1);
+  padding: 4px;
+  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.25);
+}
+
+.brand-copy {
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.brand-label {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.hero-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-shell {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
+  border: 2px solid rgba(56, 189, 248, 0.6);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  color: #f8fafc;
+  font-size: 1.2rem;
+}
+
+.hero-greeting {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.profile-highlights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.profile-highlights article {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.2);
+  display: grid;
+  gap: 6px;
+}
+
+.profile-highlights strong {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.profile-highlights span {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.85rem;
+}
+
+.card-label {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.85rem;
+}
+
+.profile-actions {
+  margin-top: 20px;
+  border-radius: 18px;
+  padding: 4px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: grid;
+  gap: 6px;
+}
+
+.profile-actions button {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #f8fafc;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.profile-actions button:hover,
+.profile-actions button:focus-visible {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.profile-actions button:active {
+  transform: scale(0.98);
+}
+
+.action-icon {
+  font-size: 1.2rem;
+  width: 36px;
+}
+
+.action-info {
+  flex: 1;
+}
+
+.action-info p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.action-info small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.action-arrow {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 1.2rem;
+}
+
+.profile-auth .primary,
+.gate-cta {
+  border-radius: 999px;
+  background: linear-gradient(135deg, #38bdf8, #22d3ee);
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.profile-auth .primary:active,
+.gate-cta:active {
+  transform: scale(0.98);
+  box-shadow: 0 6px 20px rgba(34, 211, 238, 0.35);
+}
 </style>
+
+.profile-auth.compact {
+  text-align: center;
+  gap: 8px;
+}
+
+.cta-hint {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
+}
+
+.auth-full .back-link {
+  align-self: flex-start;
+  margin-bottom: 12px;
+}
