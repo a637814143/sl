@@ -33,19 +33,19 @@ public class OrderService {
 
     @Transactional
     public OrderResponse placeOrder(CreateOrderRequest request) {
-        Drink drink = drinkRepository.findById(request.drinkId())
+        Drink drink = drinkRepository.findById(request.getDrinkId())
                 .orElseThrow(() -> new IllegalArgumentException("找不到对应的饮品"));
         if (!drink.isAvailable()) {
             throw new IllegalStateException("该饮品暂时无法购买");
         }
-        Merchant merchant = merchantRepository.findById(request.merchantId())
+        Merchant merchant = merchantRepository.findById(request.getMerchantId())
                 .orElseThrow(() -> new IllegalArgumentException("找不到对应的门店"));
 
         DrinkOrder newOrder = new DrinkOrder(
-                request.customerName(),
-                request.contactPhone(),
-                request.quantity(),
-                request.pickupTime(),
+                request.getCustomerName(),
+                request.getContactPhone(),
+                request.getQuantity(),
+                request.getPickupTime(),
                 OrderStatus.RECEIVED,
                 drink,
                 merchant,
