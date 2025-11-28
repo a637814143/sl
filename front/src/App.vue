@@ -135,22 +135,17 @@
       </section>
 
       <section v-else-if="activeTab === 'profile'" class="panel profile">
-        <div class="profile-hero">
-          <div class="brand-mark">
-            <img :src="brandLogo" alt="8AM logo" />
-            <div class="brand-copy">
-              <p class="brand-label">8AM 灵感室</p>
-              <small>咖啡 · 巴斯克 · 灵感实验</small>
-            </div>
+        <div class="profile-hero banner-card">
+          <img class="banner-bg" :src="profileBanner" alt="个人背景" />
+          <div class="banner-overlay"></div>
+          <button class="ghost icon-only banner-action" type="button" @click="handleProfileAction('info')">⚙</button>
+          <div class="banner-content">
+            <p class="banner-greeting">{{ heroGreeting }}</p>
+            <small class="banner-role">{{ currentUser ? heroSubtitle : '未登录 · 游客模式' }}</small>
           </div>
-          <div class="hero-user">
-            <div class="avatar-shell">
-              {{ currentUser ? (currentUser.displayName || currentUser.username).slice(0, 1) : '访' }}
-            </div>
-            <div>
-              <p class="hero-greeting">{{ heroGreeting }}</p>
-              <small>{{ currentUser ? heroSubtitle : '未登录 · 游客模式' }}</small>
-            </div>
+          <div class="hero-avatar">
+            <img v-if="profileAvatar" :src="profileAvatar" alt="当前头像" />
+            <span v-else>{{ currentUser ? (currentUser.displayName || currentUser.username).slice(0, 1) : '访' }}</span>
           </div>
         </div>
 
@@ -249,6 +244,88 @@
           <p class="feedback" v-if="authFeedback">{{ authFeedback }}</p>
         </div>
       </section>
+
+      <section v-else-if="activeTab === 'profileSettings'" class="panel profile settings-panel">
+        <header class="settings-header">
+          <button class="ghost back-link" type="button" @click="activeTab = 'profile'">‹ 返回</button>
+          <h2>个人资料</h2>
+          <button class="ghost icon-only" type="button" @click="showProfileHints">···</button>
+        </header>
+
+        <div v-if="profileLoading" class="empty-state">
+          <h2>加载资料中...</h2>
+          <p>请稍候，正在同步账户信息。</p>
+        </div>
+
+        <div v-else-if="currentUser" class="settings-body">
+          <div class="settings-card">
+            <div class="avatar-preview">
+              <div class="avatar-shell large">
+                <img v-if="avatarDisplay" :src="avatarDisplay" alt="当前头像" />
+                <span v-else>{{ profileInitial }}</span>
+                <button class="avatar-edit" type="button" :disabled="avatarUploading" @click="triggerAvatarPicker">
+                  {{ avatarUploading ? '上传中...' : '更换' }}
+                </button>
+                <input
+                  ref="avatarInputRef"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  class="visually-hidden"
+                  :disabled="avatarUploading"
+                  @change="handleAvatarFile"
+                />
+              </div>
+              <small class="upload-hint" v-if="avatarUploading">正在上传，请稍候...</small>
+              <p class="membership-date">{{ membershipCopy }}</p>
+              <small class="membership-code">会员 NO.{{ membershipCode }}</small>
+            </div>
+          </div>
+
+          <form class="profile-form" @submit.prevent="submitProfile">
+            <div class="form-row required">
+              <label>昵称</label>
+              <input v-model.trim="profileForm.displayName" type="text" placeholder="请输入昵称" />
+              <span class="error" v-if="profileErrors.displayName">{{ profileErrors.displayName }}</span>
+            </div>
+            <div class="form-row">
+              <label>姓氏</label>
+              <input v-model.trim="profileForm.familyName" type="text" placeholder="请输入姓氏" />
+            </div>
+            <div class="form-row">
+              <label>名字</label>
+              <input v-model.trim="profileForm.givenName" type="text" placeholder="请输入名字" />
+            </div>
+            <div class="form-row">
+              <label>性别</label>
+              <select v-model="profileForm.gender">
+                <option value="">请选择</option>
+                <option v-for="option in genderOptions" :key="option" :value="option">{{ option }}</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>手机</label>
+              <input v-model.trim="profileForm.phone" type="tel" placeholder="点击填写手机号" />
+            </div>
+            <div class="form-row">
+              <label>生日</label>
+              <input v-model="profileForm.birthday" type="date" placeholder="请选择你的生日" />
+            </div>
+            <div class="actions sticky-actions">
+              <button class="primary" type="submit" :disabled="profileSaving">
+                {{ profileSaving ? '保存中...' : '保存' }}
+              </button>
+            </div>
+            <p class="feedback" v-if="profileFeedback">{{ profileFeedback }}</p>
+          </form>
+        </div>
+
+        <div v-else class="empty-state">
+          <h2>请先登录</h2>
+          <p>登录后即可编辑个人资料并同步到数据库。</p>
+          <button class="primary" type="button" @click="activeTab = 'profileLogin'">去登录</button>
+        </div>
+      </section>
     </main>
 
     
@@ -266,7 +343,10 @@
         <span class="icon">✨</span>
         <span>灵感</span>
       </button>
-      <button :class="{ active: activeTab === 'profile' || activeTab === 'profileLogin' }" @click="activeTab = 'profile'">
+      <button
+        :class="{ active: activeTab === 'profile' || activeTab === 'profileLogin' || activeTab === 'profileSettings' }"
+        @click="activeTab = 'profile'"
+      >
         <span class="icon">👤</span>
         <span>我的</span>
       </button>
@@ -277,6 +357,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 const brandLogo = new URL('./assets/logo.png', import.meta.url).href
+const profileBg = brandLogo
 import OrderForm from './components/OrderForm.vue'
 import HomeShowcase from './components/HomeShowcase.vue'
 import CategoryShowcase from './components/CategoryShowcase.vue'
@@ -293,7 +374,10 @@ import {
   createOrder,
   fetchOrderOverview,
   fetchMerchantOrders,
-  updateMerchantOrderStatus
+  updateMerchantOrderStatus,
+  fetchUserProfile,
+  updateUserProfile,
+  uploadAvatar
 } from './services/api'
 
 const roles = [
@@ -398,6 +482,24 @@ const authErrors = reactive({})
 const authFeedback = ref('')
 const currentUser = ref(null)
 
+const genderOptions = ['女', '男', '保密']
+const profileForm = reactive({
+  displayName: '',
+  familyName: '',
+  givenName: '',
+  gender: '',
+  phone: '',
+  birthday: '',
+  avatar: ''
+})
+const profileErrors = reactive({})
+const profileFeedback = ref('')
+const profileSaving = ref(false)
+const profileLoading = ref(false)
+const avatarInputRef = ref(null)
+const avatarUploading = ref(false)
+const avatarPreviewUrl = ref('')
+
 const isAdmin = computed(() => currentUser.value?.role === 'ADMIN')
 const isMerchant = computed(() => currentUser.value?.role === 'MERCHANT')
 const isCustomer = computed(() => currentUser.value?.role === 'CUSTOMER')
@@ -420,6 +522,39 @@ const heroGreeting = computed(() =>
 
 const heroSubtitle = computed(() =>
   currentUser.value ? `角色 · ${roleLabel(currentUser.value.role)}` : '游客模式 · 浏览精选内容'
+)
+
+const membershipCode = computed(() =>
+  currentUser.value?.id ? String(currentUser.value.id).padStart(6, '0') : '------'
+)
+
+const membershipCopy = computed(() => {
+  if (!currentUser.value) {
+    return '欢迎加入 8AM 灵感室'
+  }
+  const base = new Date(2024, 0, 1)
+  const offset = currentUser.value.id ? currentUser.value.id % 160 : 0
+  base.setDate(base.getDate() + offset)
+  const month = String(base.getMonth() + 1).padStart(2, '0')
+  const day = String(base.getDate()).padStart(2, '0')
+  const venue = currentUser.value.merchantName || '8AM 灵感室'
+  return `${base.getFullYear()}-${month}-${day} 成为 ${venue} 会员`
+})
+
+const profileInitial = computed(() =>
+  profileForm.displayName
+    ? profileForm.displayName.slice(0, 1)
+    : currentUser.value?.displayName?.slice(0, 1) || '访'
+)
+const avatarDisplay = computed(() => avatarPreviewUrl.value || profileForm.avatar || '')
+const profileAvatar = computed(() => {
+  if (avatarPreviewUrl.value) return avatarPreviewUrl.value
+  if (profileForm.avatar) return profileForm.avatar
+  return currentUser.value?.avatar || ''
+})
+const profileBanner = computed(
+  () =>
+    currentUser.value?.banner || profileBg
 )
 
 const profileHighlights = computed(() => {
@@ -447,7 +582,7 @@ const profileHighlights = computed(() => {
 
 const profileActions = [
   { key: 'orders', icon: '🧾', label: '订单中心', desc: '查看制作进度与历史' },
-  { key: 'info', icon: '👤', label: '个人资料', desc: '昵称、角色、门店' },
+  { key: 'info', icon: '👤', label: '个人资料', desc: '昵称、手机号与生日' },
   { key: 'language', icon: '🌐', label: '语言设置', desc: '中文 / English' },
   { key: 'about', icon: '✨', label: '关于我们', desc: '品牌故事与灵感' }
 ]
@@ -464,7 +599,9 @@ const handleProfileAction = (key) => {
   }
   switch (key) {
     case 'info':
-      authFeedback.value = '资料编辑即将上线'
+      profileFeedback.value = ''
+      activeTab.value = 'profileSettings'
+      ensureProfileHydrated()
       break
     case 'language':
       authFeedback.value = '多语言切换即将上线'
@@ -474,6 +611,153 @@ const handleProfileAction = (key) => {
       break
     default:
       break
+  }
+}
+
+const resetProfileForm = () => {
+  profileForm.displayName = ''
+  profileForm.familyName = ''
+  profileForm.givenName = ''
+  profileForm.gender = ''
+  profileForm.phone = ''
+  profileForm.birthday = ''
+  profileForm.avatar = ''
+  Object.keys(profileErrors).forEach((key) => delete profileErrors[key])
+  profileFeedback.value = ''
+}
+
+const populateProfileForm = (user) => {
+  if (!user) {
+    resetProfileForm()
+    return
+  }
+  profileForm.displayName = user.displayName || ''
+  profileForm.familyName = user.familyName || ''
+  profileForm.givenName = user.givenName || ''
+  profileForm.gender = user.gender || ''
+  profileForm.phone = user.phone || ''
+  profileForm.avatar = user.avatar || ''
+  profileForm.birthday = user.birthday || ''
+}
+
+const ensureProfileHydrated = async () => {
+  if (!currentUser.value?.id) return
+  profileLoading.value = true
+  try {
+    const fresh = await fetchUserProfile(currentUser.value.id)
+    currentUser.value = fresh
+    populateProfileForm(fresh)
+  } catch (error) {
+    profileFeedback.value = error.response?.data?.message || '加载资料失败，请稍后重试'
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+const revokePreviewUrl = (url) => {
+  if (!url) return
+  if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+    URL.revokeObjectURL(url)
+  }
+}
+
+const clearAvatarPreview = () => {
+  if (avatarPreviewUrl.value) {
+    revokePreviewUrl(avatarPreviewUrl.value)
+    avatarPreviewUrl.value = ''
+  }
+}
+
+const clearAvatarInput = () => {
+  const input = avatarInputRef.value
+  if (input) {
+    input.value = ''
+  }
+}
+
+const triggerAvatarPicker = () => {
+  if (!currentUser.value) {
+    activeTab.value = 'profileLogin'
+    return
+  }
+  if (avatarUploading.value) return
+  profileFeedback.value = ''
+  avatarInputRef.value?.click()
+}
+
+const handleAvatarFile = async (event) => {
+  const input = event.target
+  const files = input?.files
+  if (!files?.length) return
+  const file = files[0]
+  if (!file.type?.startsWith('image/')) {
+    profileFeedback.value = '请选择图片文件'
+    clearAvatarInput()
+    return
+  }
+  clearAvatarPreview()
+  avatarPreviewUrl.value = URL.createObjectURL(file)
+  avatarUploading.value = true
+  profileFeedback.value = ''
+  try {
+    const response = await uploadAvatar(file)
+    if (!response?.url) {
+      throw new Error('missing url')
+    }
+    profileForm.avatar = response.url
+    profileFeedback.value = '头像已上传，记得点击保存'
+  } catch (error) {
+    profileFeedback.value = error.response?.data?.message || '上传失败，请稍后再试'
+  } finally {
+    avatarUploading.value = false
+    clearAvatarPreview()
+    clearAvatarInput()
+  }
+}
+
+const showProfileHints = () => {
+  profileFeedback.value = '支持相册与拍摄上传，成功后记得保存资料'
+}
+
+const validateProfileForm = () => {
+  const errors = {}
+  if (!profileForm.displayName) {
+    errors.displayName = '请输入昵称'
+  }
+  return errors
+}
+
+const submitProfile = async () => {
+  if (!currentUser.value?.id) {
+    profileFeedback.value = '请先登录后再保存'
+    return
+  }
+  const errors = validateProfileForm()
+  Object.keys(profileErrors).forEach((key) => delete profileErrors[key])
+  Object.assign(profileErrors, errors)
+  if (Object.keys(errors).length) {
+    return
+  }
+  profileSaving.value = true
+  profileFeedback.value = ''
+  try {
+    const payload = {
+      displayName: profileForm.displayName,
+      familyName: profileForm.familyName || null,
+      givenName: profileForm.givenName || null,
+      gender: profileForm.gender || null,
+      phone: profileForm.phone || null,
+      birthday: profileForm.birthday || null,
+      avatar: profileForm.avatar || null
+    }
+    const updated = await updateUserProfile(currentUser.value.id, payload)
+    currentUser.value = updated
+    populateProfileForm(updated)
+    profileFeedback.value = '已保存'
+  } catch (error) {
+    profileFeedback.value = error.response?.data?.message || '保存失败，请稍后重试'
+  } finally {
+    profileSaving.value = false
   }
 }
 
@@ -631,6 +915,7 @@ const logout = () => {
     activeTab.value = 'profile'
   }
   resetDrinkForm()
+  resetProfileForm()
   adminDrinks.value = []
   adminOverview.value = null
   merchantBoard.merchantName = ''
@@ -732,6 +1017,29 @@ const formatTime = (isoString) => {
   const date = new Date(isoString)
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
 }
+
+watch(
+  () => currentUser.value,
+  (user) => {
+    populateProfileForm(user)
+    if (!user) {
+      profileLoading.value = false
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => activeTab.value,
+  (tab) => {
+    if (tab === 'profileSettings' && currentUser.value?.id) {
+      ensureProfileHydrated()
+    }
+    if (tab !== 'profileSettings') {
+      profileSaving.value = false
+    }
+  }
+)
 
 watch(
   () => registerRole.value,
@@ -1325,74 +1633,87 @@ button.danger {
 .profile-hero {
   position: relative;
   border-radius: 22px;
-  padding: 20px;
-  background: radial-gradient(circle at 5% 20%, rgba(59, 130, 246, 0.25), transparent 45%),
-    radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.25), transparent 40%),
-    rgba(15, 23, 42, 0.85);
+  background: #0f172a;
   border: 1px solid rgba(59, 130, 246, 0.3);
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  overflow: hidden;
+  min-height: 170px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.5);
 }
 
-.brand-mark {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-mark img {
-  width: 68px;
-  height: 68px;
+.banner-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 50%;
-  border: 2px solid rgba(248, 250, 252, 0.9);
-  background: rgba(14, 165, 233, 0.1);
-  padding: 4px;
-  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.25);
 }
 
-.brand-copy {
-  color: rgba(226, 232, 240, 0.9);
+.banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.2));
 }
 
-.brand-label {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
+.banner-action {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  color: #f8fafc;
 }
 
-.hero-user {
+.banner-content {
+  position: relative;
+  z-index: 2;
+  color: #f8fafc;
+  max-width: 65%;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.avatar-shell {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: rgba(15, 23, 42, 0.75);
-  border: 2px solid rgba(56, 189, 248, 0.6);
+.banner-greeting {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.banner-role {
+  color: rgba(248, 250, 252, 0.85);
+  font-size: 0.95rem;
+}
+
+.hero-avatar {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 88px;
+  height: 88px;
+  border-radius: 28px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 4px solid rgba(248, 250, 252, 0.8);
   display: grid;
   place-items: center;
-  font-weight: 600;
   color: #f8fafc;
-  font-size: 1.2rem;
+  font-weight: 700;
+  font-size: 1.8rem;
+  z-index: 3;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.4);
 }
 
-.hero-greeting {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
+.hero-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 24px;
 }
 
 .profile-highlights {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 48px;
 }
 
 .profile-highlights article {
@@ -1489,7 +1810,6 @@ button.danger {
   transform: scale(0.98);
   box-shadow: 0 6px 20px rgba(34, 211, 238, 0.35);
 }
-</style>
 
 .profile-auth.compact {
   text-align: center;
@@ -1506,3 +1826,110 @@ button.danger {
   align-self: flex-start;
   margin-bottom: 12px;
 }
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.icon-only {
+  min-width: 48px;
+}
+
+.settings-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  text-align: center;
+}
+
+.avatar-shell.large {
+  width: 96px;
+  height: 96px;
+  font-size: 2.3rem;
+  margin: 0 auto;
+  position: relative;
+}
+
+.avatar-shell.large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-edit {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  border-radius: 18px;
+  background: #38bdf8;
+  color: #0f172a;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+}
+
+.avatar-edit:disabled {
+  opacity: 0.7;
+}
+
+.avatar-preview p {
+  margin: 16px 0 4px;
+  font-weight: 600;
+}
+
+.membership-code {
+  color: rgba(148, 163, 184, 0.8);
+  letter-spacing: 0.2em;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-row.required label::after {
+  content: '*';
+  color: #f87171;
+  margin-left: 4px;
+}
+
+.sticky-actions {
+  margin-top: 8px;
+}
+
+.upload-hint {
+  display: block;
+  margin-top: 8px;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+</style>
