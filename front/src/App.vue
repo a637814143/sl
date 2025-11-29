@@ -13,7 +13,7 @@
           :increment-item="addCartItem"
           :decrement-item="decrementCartItem"
           :clear-cart="clearSharedCart"
-          @checkout="activeTab = 'order'"
+          @checkout="openStorePicker"
         />
       </section>
 
@@ -115,7 +115,12 @@
           </div>
         </template>
         <template v-else>
-          <OrderForm :drinks="catalogDrinks" :merchants="merchants" :submit-order="submitCustomerOrder" />
+          <OrderForm
+            :drinks="catalogDrinks"
+            :merchants="merchants"
+            :preferred-merchant-id="selectedMerchantId"
+            :submit-order="submitCustomerOrder"
+          />
         </template>
       </section>
 
@@ -130,8 +135,156 @@
           :increment-item="addCartItem"
           :decrement-item="decrementCartItem"
           :clear-cart="clearSharedCart"
-          @checkout="activeTab = 'order'"
+          @checkout="openStorePicker"
         />
+      </section>
+
+      <section v-else-if="activeTab === 'storePicker'" class="panel store-picker-page">
+        <header class="store-page-header">
+          <button class="ghost back-link" type="button" @click="closeStorePicker">‹ 返回</button>
+          <div>
+            <p class="store-title">选择取杯门店</p>
+            <small class="store-note">{{ locationStatusText }}</small>
+          </div>
+          <button
+            class="ghost"
+            type="button"
+            :disabled="locationStatus === 'pending' || !geolocationSupported"
+            @click="requestLocation"
+          >
+            {{ locationButtonLabel }}
+          </button>
+        </header>
+        <p class="store-intro">下单前先锁定离你最近的门店，便于安排取杯与通知。</p>
+        <ul class="store-list">
+          <li v-for="store in sortedMerchants" :key="store.id">
+            <button
+              type="button"
+              :class="{ active: storePicker.selectedId === store.id }"
+              @click="storePicker.selectedId = store.id"
+            >
+              <div>
+                <strong>{{ store.name }}</strong>
+                <span>{{ store.location || '地址待完善' }}</span>
+              </div>
+              <div class="distance" v-if="store.distance !== null">{{ store.distance.toFixed(1) }} km</div>
+              <div class="distance" v-else>--</div>
+            </button>
+          </li>
+          <li v-if="!sortedMerchants.length" class="store-empty">暂无可选门店</li>
+        </ul>
+        <div class="store-actions">
+          <button class="ghost" type="button" @click="closeStorePicker">取消</button>
+          <button class="primary" type="button" :disabled="!storePicker.selectedId" @click="confirmStoreSelection">
+            确认门店
+          </button>
+        </div>
+        <small v-if="locationStatus === 'denied'" class="store-denied">定位被拒，可在浏览器设置中允许权限</small>
+      </section>
+
+      <section v-else-if="activeTab === 'checkout'" class="panel checkout-panel">
+        <header class="checkout-store">
+          <div>
+            <p class="section-label">取杯门店</p>
+            <h2>{{ selectedMerchant?.name || '请选择门店' }}</h2>
+            <small>{{ selectedMerchant?.location || '请选择门店以继续下单' }}</small>
+          </div>
+          <button class="ghost" type="button" @click="openStorePicker">切换门店</button>
+        </header>
+
+        <div class="checkout-contact" v-if="currentUser">
+          <div>
+            <p>取餐联系人</p>
+            <strong>{{ orderContactName || '请完善称呼' }}</strong>
+          </div>
+          <div>
+            <p>联系电话</p>
+            <strong>{{ orderContactPhone || '请完善手机号' }}</strong>
+          </div>
+          <button class="ghost" type="button" @click="handleProfileAction('info')">完善资料</button>
+        </div>
+        <div class="checkout-contact warning" v-else>
+          <div>
+            <p>尚未登录</p>
+            <small>登录后才能提交订单</small>
+          </div>
+          <button class="primary" type="button" @click="activeTab = 'profileLogin'">立即登录</button>
+        </div>
+
+        <section class="checkout-pickup">
+          <header>
+            <p>取餐方式</p>
+            <small>{{ pickupMethodText }}</small>
+          </header>
+          <div class="pickup-options">
+            <button
+              v-for="option in pickupOptions"
+              :key="option.value"
+              type="button"
+              :class="{ active: pickupMethod === option.value }"
+              @click="pickupMethod = option.value"
+            >
+              <strong>{{ option.label }}</strong>
+              <span>{{ option.desc }}</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="checkout-products">
+          <header>
+            <div>
+              <p>已选商品</p>
+              <small>{{ sharedCartSummary }}</small>
+            </div>
+            <button class="ghost" type="button" @click="activeTab = 'home'">继续加购</button>
+          </header>
+          <ul v-if="sharedCartItems.length" class="checkout-list">
+            <li v-for="item in sharedCartItems" :key="item.id">
+              <div class="thumb" :style="checkoutThumbStyle(item)">
+                <span v-if="item.tag" class="mini-tag">{{ item.tag }}</span>
+              </div>
+              <div class="item-info">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.customSummary || '标准出品' }}</p>
+                <span>¥ {{ Number(item.price || 0).toFixed(2) }}</span>
+              </div>
+              <div class="item-qty">× {{ item.quantity }}</div>
+            </li>
+          </ul>
+          <p v-else class="cart-empty">购物车为空，去首页挑选喜欢的商品吧</p>
+        </section>
+
+        <div class="checkout-summary">
+          <span>共 {{ sharedCartCount }} 件</span>
+          <strong>¥ {{ sharedCartTotal.toFixed(2) }}</strong>
+        </div>
+
+        <div class="checkout-remark">
+          <div>
+            <p>订单备注</p>
+            <small>{{ orderRemark || '口味、包装等特殊要求' }}</small>
+          </div>
+          <button class="ghost" type="button" @click="remarkEditorOpen = !remarkEditorOpen">
+            {{ remarkEditorOpen ? '完成' : '编辑' }}
+          </button>
+        </div>
+        <textarea
+          v-if="remarkEditorOpen"
+          class="remark-editor"
+          v-model="orderRemark"
+          placeholder="示例：少糖、另外附赠纸袋"
+        ></textarea>
+
+        <p class="feedback" v-if="checkoutFeedback">{{ checkoutFeedback }}</p>
+
+        <button
+          class="primary checkout-submit"
+          type="button"
+          :disabled="checkoutDisabled"
+          @click="handleCheckoutSubmit"
+        >
+          {{ checkoutSubmitting ? '下单中…' : `确认下单 · ¥ ${sharedCartTotal.toFixed(2)}` }}
+        </button>
       </section>
 
       <section v-else-if="activeTab === 'profile'" class="panel profile">
@@ -328,10 +481,8 @@
       </section>
     </main>
 
-    
-
     <nav class="tabbar" :class="{ compact: !showWorkbench }">
-      <button :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">
+      <button :class="{ active: activeTab === 'home' || activeTab === 'checkout' }" @click="activeTab = 'home'">
         <span class="icon">🏠</span>
         <span>首页</span>
       </button>
@@ -499,6 +650,26 @@ const profileLoading = ref(false)
 const avatarInputRef = ref(null)
 const avatarUploading = ref(false)
 const avatarPreviewUrl = ref('')
+const selectedMerchantId = ref(null)
+const storePicker = reactive({
+  selectedId: null,
+  returnTab: 'home'
+})
+const pickupOptions = [
+  { value: 'DINE_IN', label: '店内享用', desc: '堂食慢慢品味' },
+  { value: 'TAKEAWAY', label: '打包带走', desc: '到店自取更灵活' }
+]
+const pickupMethod = ref('TAKEAWAY')
+const orderRemark = ref('')
+const remarkEditorOpen = ref(false)
+const checkoutFeedback = ref('')
+const checkoutSubmitting = ref(false)
+const geolocationSupported = typeof navigator !== 'undefined' && !!navigator.geolocation
+const locationStatus = ref(geolocationSupported ? 'idle' : 'unsupported')
+const userLocation = reactive({
+  lat: null,
+  lng: null
+})
 
 const isAdmin = computed(() => currentUser.value?.role === 'ADMIN')
 const isMerchant = computed(() => currentUser.value?.role === 'MERCHANT')
@@ -555,6 +726,81 @@ const profileAvatar = computed(() => {
 const profileBanner = computed(
   () =>
     currentUser.value?.banner || profileBg
+)
+const locationStatusText = computed(() => {
+  switch (locationStatus.value) {
+    case 'pending':
+      return '定位中，请稍候'
+    case 'ready':
+      return '已根据当前位置推荐'
+    case 'denied':
+      return '未授权定位，可手动选择'
+    case 'error':
+      return '定位失败，可手动选择'
+    case 'unsupported':
+      return '设备不支持定位'
+    default:
+      return '可开启定位以按距离排序'
+  }
+})
+const locationButtonLabel = computed(() => {
+  if (!geolocationSupported) return '设备不支持定位'
+  if (locationStatus.value === 'pending') return '定位中...'
+  if (locationStatus.value === 'ready') return '重新定位'
+  if (locationStatus.value === 'denied') return '重新授权定位'
+  if (locationStatus.value === 'error') return '重新定位'
+  return '开启定位'
+})
+const sortedMerchants = computed(() => {
+  const lat = userLocation.lat
+  const lng = userLocation.lng
+  const list = merchants.value.map((store) => {
+    let distance = null
+    if (
+      lat !== null &&
+      lng !== null &&
+      store.latitude !== undefined &&
+      store.latitude !== null &&
+      store.longitude !== undefined &&
+      store.longitude !== null
+    ) {
+      distance = distanceBetween(lat, lng, store.latitude, store.longitude)
+    }
+    return {
+      ...store,
+      distance
+    }
+  })
+  return list.sort((a, b) => {
+    if (a.distance !== null && b.distance !== null) {
+      return a.distance - b.distance
+    }
+    if (a.distance !== null) return -1
+    if (b.distance !== null) return 1
+    return a.name.localeCompare(b.name)
+  })
+})
+
+const selectedMerchant = computed(() =>
+  merchants.value.find((store) => String(store.id) === String(selectedMerchantId.value)) || null
+)
+const pickupMethodText = computed(
+  () => pickupOptions.find((option) => option.value === pickupMethod.value)?.desc || '选择你偏好的取餐方式'
+)
+const pickupMethodLabel = computed(
+  () => pickupOptions.find((option) => option.value === pickupMethod.value)?.label || '自取带走'
+)
+const orderContactName = computed(
+  () => profileForm.displayName || currentUser.value?.displayName || currentUser.value?.username || ''
+)
+const orderContactPhone = computed(() => profileForm.phone || currentUser.value?.phone || '')
+const checkoutDisabled = computed(
+  () =>
+    checkoutSubmitting.value ||
+    !currentUser.value ||
+    !sharedCartItems.value.length ||
+    !selectedMerchantId.value ||
+    !orderContactPhone.value
 )
 
 const profileHighlights = computed(() => {
@@ -717,6 +963,122 @@ const handleAvatarFile = async (event) => {
 
 const showProfileHints = () => {
   profileFeedback.value = '支持相册与拍摄上传，成功后记得保存资料'
+}
+
+const distanceBetween = (lat1, lon1, lat2, lon2) => {
+  const toRad = (value) => (value * Math.PI) / 180
+  const R = 6371
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+const requestLocation = () => {
+  if (!geolocationSupported) {
+    locationStatus.value = 'unsupported'
+    return
+  }
+  locationStatus.value = 'pending'
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      userLocation.lat = position.coords.latitude
+      userLocation.lng = position.coords.longitude
+      locationStatus.value = 'ready'
+    },
+    (error) => {
+      if (error.code === error.PERMISSION_DENIED) {
+        locationStatus.value = 'denied'
+      } else {
+        locationStatus.value = 'error'
+      }
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  )
+}
+
+const checkoutThumbStyle = (item = {}) => {
+  const image = item.imageUrl || item.image
+  return {
+    backgroundImage: image
+      ? `linear-gradient(135deg, rgba(15,23,42,0.35), rgba(15,23,42,0.65)), url(${image})`
+      : 'linear-gradient(135deg, rgba(15,23,42,0.35), rgba(15,23,42,0.65))',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
+  }
+}
+
+const openStorePicker = () => {
+  storePicker.selectedId = selectedMerchantId.value || merchants.value[0]?.id || null
+  storePicker.returnTab = activeTab.value || 'home'
+  activeTab.value = 'storePicker'
+  if (locationStatus.value === 'idle' && geolocationSupported) {
+    requestLocation()
+  }
+}
+
+const closeStorePicker = () => {
+  activeTab.value = storePicker.returnTab || 'home'
+}
+
+const confirmStoreSelection = () => {
+  if (!storePicker.selectedId) return
+  selectedMerchantId.value = storePicker.selectedId
+  const nextTab = showWorkbench.value ? 'order' : 'checkout'
+  activeTab.value = nextTab
+}
+
+const handleCheckoutSubmit = async () => {
+  if (checkoutDisabled.value) return
+  if (!currentUser.value) {
+    checkoutFeedback.value = '请先登录后再下单'
+    activeTab.value = 'profileLogin'
+    return
+  }
+  if (!sharedCartItems.value.length) {
+    checkoutFeedback.value = '购物车为空，去挑选喜欢的灵感饮品吧'
+    activeTab.value = 'home'
+    return
+  }
+  if (!selectedMerchantId.value) {
+    checkoutFeedback.value = '请选择门店后再下单'
+    openStorePicker()
+    return
+  }
+  if (!orderContactPhone.value) {
+    checkoutFeedback.value = '请先在“我的-个人资料”中完善手机号'
+    handleProfileAction('info')
+    return
+  }
+  checkoutSubmitting.value = true
+  checkoutFeedback.value = ''
+  try {
+    const merchantId = Number(selectedMerchantId.value)
+    const pickupNote = [pickupMethodLabel.value, orderRemark.value.trim()].filter(Boolean).join(' · ')
+    for (const item of sharedCartItems.value) {
+      await createOrder({
+        customerName: orderContactName.value || '灵感顾客',
+        contactPhone: orderContactPhone.value,
+        drinkId: Number(item.drinkId),
+        merchantId,
+        quantity: Number(item.quantity) || 1,
+        pickupTime: pickupNote || pickupMethodLabel.value
+      })
+    }
+    await loadSharedResources()
+    orderRemark.value = ''
+    remarkEditorOpen.value = false
+    clearSharedCart()
+    checkoutFeedback.value = '订单已提交，稍后可在“我的”查看进度'
+    activeTab.value = 'home'
+  } catch (error) {
+    checkoutFeedback.value = error?.response?.data?.message || '下单失败，请稍后再试'
+  } finally {
+    checkoutSubmitting.value = false
+  }
 }
 
 const validateProfileForm = () => {
@@ -1061,6 +1423,16 @@ watch(
       await loadMerchantBoard()
     }
   }
+)
+
+watch(
+  () => merchants.value,
+  (list) => {
+    if (!selectedMerchantId.value && list.length) {
+      selectedMerchantId.value = list[0].id
+    }
+  },
+  { immediate: true }
 )
 
 watch(
@@ -1464,6 +1836,358 @@ button.danger {
   text-align: center;
   padding: 48px 0;
   color: rgba(226, 232, 240, 0.75);
+}
+
+.store-picker-page {
+  display: grid;
+  gap: 16px;
+}
+
+.store-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.store-page-header > div {
+  flex: 1;
+}
+
+.store-page-header .back-link {
+  flex: none;
+}
+
+.store-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.store-note {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.store-intro {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.store-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.store-list li button {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.65);
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #e2e8f0;
+  gap: 12px;
+}
+
+.store-list li button.active {
+  border-color: rgba(59, 130, 246, 0.7);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.store-list strong {
+  font-size: 1rem;
+}
+
+.store-list span {
+  display: block;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
+}
+
+.distance {
+  font-weight: 600;
+  color: rgba(129, 140, 248, 0.95);
+}
+
+.store-empty {
+  text-align: center;
+  padding: 24px 12px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.45);
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.store-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.store-actions .ghost,
+.store-actions .primary {
+  flex: 1;
+}
+
+.store-denied {
+  color: rgba(248, 113, 113, 0.85);
+  font-size: 0.85rem;
+}
+
+.checkout-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.section-label {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.checkout-store {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.checkout-store h2 {
+  margin: 4px 0 2px;
+}
+
+.checkout-store small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.checkout-contact {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.checkout-contact.warning {
+  flex-wrap: wrap;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.checkout-contact p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.85rem;
+}
+
+.checkout-contact strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.checkout-contact button {
+  flex: none;
+}
+
+.checkout-pickup {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.checkout-pickup header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.checkout-pickup header p {
+  margin: 0;
+}
+
+.checkout-pickup header small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.pickup-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.pickup-options button {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 12px;
+  text-align: left;
+  background: rgba(15, 23, 42, 0.45);
+  color: #e2e8f0;
+  display: grid;
+  gap: 4px;
+}
+
+.pickup-options button.active {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(56, 189, 248, 0.18);
+  color: #f8fafc;
+}
+
+.pickup-options button strong {
+  font-size: 1rem;
+}
+
+.pickup-options button span {
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.checkout-products {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  display: grid;
+  gap: 12px;
+}
+
+.checkout-products header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.checkout-products header p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.checkout-products header small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.checkout-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.checkout-list li {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.25);
+}
+
+.checkout-list li:last-child {
+  border-bottom: none;
+}
+
+.checkout-list .thumb {
+  border-radius: 16px;
+  min-height: 72px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.checkout-list .mini-tag {
+  top: 8px;
+  left: 8px;
+}
+
+.checkout-list .item-info {
+  display: grid;
+  gap: 4px;
+}
+
+.checkout-list .item-info h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.checkout-list .item-info p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.85rem;
+}
+
+.checkout-list .item-info span {
+  font-weight: 600;
+}
+
+.checkout-list .item-qty {
+  font-weight: 700;
+  align-self: center;
+  color: rgba(226, 232, 240, 0.95);
+}
+
+.checkout-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.checkout-summary strong {
+  font-size: 1.2rem;
+}
+
+.checkout-remark {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.checkout-remark p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.checkout-remark small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.remark-editor {
+  width: 100%;
+  min-height: 90px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  color: #f8fafc;
+  padding: 14px;
+  resize: vertical;
+}
+
+.checkout-submit {
+  width: 100%;
+  font-size: 1.05rem;
 }
 
 .explore .overview-grid {
