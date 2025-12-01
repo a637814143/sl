@@ -19,6 +19,8 @@ public interface DrinkOrderRepository extends JpaRepository<DrinkOrder, Long> {
 
     Optional<DrinkOrder> findByIdAndMerchantId(Long id, Long merchantId);
 
+    List<DrinkOrder> findAllByPaymentTradeNo(String paymentTradeNo);
+
     @Query("SELECT o.drink.name FROM DrinkOrder o GROUP BY o.drink.name ORDER BY SUM(o.quantity) DESC")
     List<String> findTopSellingDrinkNames(Pageable pageable);
 }

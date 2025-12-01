@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -43,6 +44,18 @@ public class DrinkOrder {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "payment_trade_no", length = 64)
+    private String paymentTradeNo;
+
+    @Column(name = "payment_status", length = 32)
+    private String paymentStatus;
+
+    @Column(name = "payment_amount", precision = 10, scale = 2)
+    private BigDecimal paymentAmount;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
 
     protected DrinkOrder() {
     }
@@ -97,5 +110,37 @@ public class DrinkOrder {
 
     public void setStatus(OrderStatus status) {
         this.status = status;
+    }
+
+    public String getPaymentTradeNo() {
+        return paymentTradeNo;
+    }
+
+    public void setPaymentTradeNo(String paymentTradeNo) {
+        this.paymentTradeNo = paymentTradeNo;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public BigDecimal getPaymentAmount() {
+        return paymentAmount;
+    }
+
+    public void setPaymentAmount(BigDecimal paymentAmount) {
+        this.paymentAmount = paymentAmount;
+    }
+
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
     }
 }

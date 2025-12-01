@@ -28,7 +28,9 @@ public class MerchantController {
                         merchant.getName(),
                         merchant.getContact(),
                         merchant.getLocation(),
-                        merchant.getSignatureStory()
+                        merchant.getSignatureStory(),
+                        merchant.getLatitude(),
+                        merchant.getLongitude()
                 ))
                 .toList();
     }

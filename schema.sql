@@ -10,6 +10,8 @@ CREATE TABLE merchants (
     name VARCHAR(255) NOT NULL,
     contact VARCHAR(255),
     location VARCHAR(255),
+    latitude DOUBLE,
+    longitude DOUBLE,
     signature_story VARCHAR(512),
     CONSTRAINT pk_merchants PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -18,6 +20,11 @@ CREATE TABLE lab_users (
     id BIGINT NOT NULL AUTO_INCREMENT,
     username VARCHAR(64) NOT NULL,
     display_name VARCHAR(255) NOT NULL,
+    family_name VARCHAR(64),
+    given_name VARCHAR(64),
+    gender VARCHAR(32),
+    phone VARCHAR(32),
+    birthday DATE,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL,
     avatar VARCHAR(255),

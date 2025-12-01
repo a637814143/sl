@@ -1,7 +1,17 @@
 import axios from 'axios'
 
+const resolveBaseURL = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:8080/api`
+  }
+  return 'http://localhost:8080/api'
+}
+
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
+  baseURL: resolveBaseURL(),
   timeout: 8000
 })
 
@@ -26,6 +36,16 @@ export const fetchCatalogDrinks = () => client.get('/drinks').then((res) => res.
 export const fetchMerchants = () => client.get('/merchants').then((res) => res.data)
 export const createOrder = (payload) => client.post('/orders', payload).then((res) => res.data)
 export const fetchOrderOverview = () => client.get('/orders/overview').then((res) => res.data)
+export const createAlipayPayment = (payload) => client.post('/payments/alipay', payload).then((res) => res.data)
 
 export const register = (payload) => client.post('/auth/register', payload).then((res) => res.data)
 export const login = (payload) => client.post('/auth/login', payload).then((res) => res.data)
+
+export const fetchUserProfile = (userId) => client.get(`/users/${userId}`).then((res) => res.data)
+export const updateUserProfile = (userId, payload) =>
+  client.put(`/users/${userId}/profile`, payload).then((res) => res.data)
+export const uploadAvatar = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return client.post('/uploads/avatar', formData).then((res) => res.data)
+}

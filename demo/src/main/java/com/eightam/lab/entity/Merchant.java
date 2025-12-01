@@ -25,14 +25,25 @@ public class Merchant {
     @Column(name = "signature_story", length = 512)
     private String signatureStory;
 
+    private Double latitude;
+
+    private Double longitude;
+
     protected Merchant() {
     }
 
     public Merchant(String name, String contact, String location, String signatureStory) {
+        this(name, contact, location, signatureStory, null, null);
+    }
+
+    public Merchant(String name, String contact, String location, String signatureStory,
+                    Double latitude, Double longitude) {
         this.name = name;
         this.contact = contact;
         this.location = location;
         this.signatureStory = signatureStory;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public Long getId() {
@@ -53,5 +64,13 @@ public class Merchant {
 
     public String getSignatureStory() {
         return signatureStory;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
     }
 }

@@ -1,11 +1,11 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.entity.LabUser;
-import com.eightam.lab.entity.Merchant;
-import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.dto.LoginRequest;
 import com.eightam.lab.dto.RegisterRequest;
 import com.eightam.lab.dto.UserResponse;
+import com.eightam.lab.entity.LabUser;
+import com.eightam.lab.entity.Merchant;
+import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.repository.LabUserRepository;
 import com.eightam.lab.repository.MerchantRepository;
 import org.springframework.http.HttpStatus;
@@ -20,13 +20,16 @@ public class AuthService {
     private final LabUserRepository labUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final MerchantRepository merchantRepository;
+    private final UserResponseMapper userResponseMapper;
 
     public AuthService(LabUserRepository labUserRepository,
                        PasswordEncoder passwordEncoder,
-                       MerchantRepository merchantRepository) {
+                       MerchantRepository merchantRepository,
+                       UserResponseMapper userResponseMapper) {
         this.labUserRepository = labUserRepository;
         this.passwordEncoder = passwordEncoder;
         this.merchantRepository = merchantRepository;
+        this.userResponseMapper = userResponseMapper;
     }
 
     @Transactional
@@ -58,7 +61,7 @@ public class AuthService {
         }
 
         LabUser saved = labUserRepository.save(user);
-        return toResponse(saved);
+        return userResponseMapper.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -80,19 +83,6 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "该账号无权以此角色登录");
         }
 
-        return toResponse(user);
-    }
-
-    private UserResponse toResponse(LabUser user) {
-        Merchant merchant = user.getManagedMerchant();
-        return new UserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getDisplayName(),
-                user.getRole().name(),
-                user.getAvatar(),
-                merchant != null ? merchant.getId() : null,
-                merchant != null ? merchant.getName() : null
-        );
+        return userResponseMapper.from(user);
     }
 }

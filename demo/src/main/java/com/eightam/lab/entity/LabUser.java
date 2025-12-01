@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "lab_users")
@@ -25,6 +26,21 @@ public class LabUser {
 
     @Column(name = "display_name", nullable = false, length = 128)
     private String displayName;
+
+    @Column(name = "family_name", length = 64)
+    private String familyName;
+
+    @Column(name = "given_name", length = 64)
+    private String givenName;
+
+    @Column(length = 32)
+    private String gender;
+
+    @Column(length = 32)
+    private String phone;
+
+    @Column
+    private LocalDate birthday;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
@@ -67,6 +83,46 @@ public class LabUser {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getFamilyName() {
+        return familyName;
+    }
+
+    public void setFamilyName(String familyName) {
+        this.familyName = familyName;
+    }
+
+    public String getGivenName() {
+        return givenName;
+    }
+
+    public void setGivenName(String givenName) {
+        this.givenName = givenName;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public LocalDate getBirthday() {
+        return birthday;
+    }
+
+    public void setBirthday(LocalDate birthday) {
+        this.birthday = birthday;
     }
 
     public UserRole getRole() {

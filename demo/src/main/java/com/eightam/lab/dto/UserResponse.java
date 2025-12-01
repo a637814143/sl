@@ -4,6 +4,11 @@ public class UserResponse {
     private Long id;
     private String username;
     private String displayName;
+    private String familyName;
+    private String givenName;
+    private String gender;
+    private String phone;
+    private String birthday;
     private String role;
     private String avatar;
     private Long merchantId;
@@ -12,11 +17,18 @@ public class UserResponse {
     public UserResponse() {
     }
 
-    public UserResponse(Long id, String username, String displayName, String role,
-                        String avatar, Long merchantId, String merchantName) {
+    public UserResponse(Long id, String username, String displayName,
+                        String familyName, String givenName,
+                        String gender, String phone, String birthday,
+                        String role, String avatar, Long merchantId, String merchantName) {
         this.id = id;
         this.username = username;
         this.displayName = displayName;
+        this.familyName = familyName;
+        this.givenName = givenName;
+        this.gender = gender;
+        this.phone = phone;
+        this.birthday = birthday;
         this.role = role;
         this.avatar = avatar;
         this.merchantId = merchantId;
@@ -45,6 +57,46 @@ public class UserResponse {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getFamilyName() {
+        return familyName;
+    }
+
+    public void setFamilyName(String familyName) {
+        this.familyName = familyName;
+    }
+
+    public String getGivenName() {
+        return givenName;
+    }
+
+    public void setGivenName(String givenName) {
+        this.givenName = givenName;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getBirthday() {
+        return birthday;
+    }
+
+    public void setBirthday(String birthday) {
+        this.birthday = birthday;
     }
 
     public String getRole() {

@@ -5,6 +5,8 @@ public record MerchantSummary(
         String name,
         String contact,
         String location,
-        String signatureStory
+        String signatureStory,
+        Double latitude,
+        Double longitude
 ) {
 }

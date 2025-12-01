@@ -1,0 +1,60 @@
+�?template>
+  <div class="category-showcase">
+    <header class="showcase-head">
+      <div>
+        <p>8am 灵感菜单</p>
+        <h1>灵感单专�?/h1>
+      </div>
+    </header>
+    <div class="category-layout">
+      <nav class="category-nav">
+        <button
+          v-for="nav in navItems"
+          :key="nav.value"
+          type="button"
+          :class="{ active: nav.value === activeSection }"
+          @click="scrollToSection(nav.value)"
+        >
+          <span class="nav-icon">{{ nav.icon }}</span>
+          {{ nav.label }}
+        </button>
+      </nav>
+      <div class="category-content">
+        <section
+          v-for="section in sections"
+          :key="section.value"
+          :id="section.anchor"
+          class="category-section"
+        >
+          <header>
+            <h2>{{ section.title }}</h2>
+            <p>{{ section.description }}</p>
+          </header>
+          <div class="card-grid">
+            <article v-for="item in section.items" :key="item.id" class="category-card">
+              <div class="card-cover" :style="coverStyle(item.imageUrl)"></div>
+              <div class="card-info">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.description || section.placeholder }}</p>
+                <div class="card-meta">
+                  <strong>¥ {{ Number(item.price || 0).toFixed(2) }}</strong>
+                  <button type="button" class="add-btn" :disabled="!item.id" @click="addToCart(item)">
+                    +
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
+          <p v-if="!section.items.length" class="category-empty">该分类暂未上架，敬请期待�?/p>
+        </section>
+      </div>
+      <aside class="mini-cart">
+        <header>
+          <h3>已选商�?/h3>
+          <small>{{ cartSummary }}</small>
+        </header>
+        <div class="mini-cart-list" v-if="cartItems.length">
+          <article v-for="item in cartItems" :key="item.id">
+            <div class="thumb" :style="coverStyle(item.imageUrl)"></div>
+            <div class="mini-info">
+              <h4>{{ item.name }}</h4>

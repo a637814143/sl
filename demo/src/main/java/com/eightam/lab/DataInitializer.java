@@ -11,6 +11,7 @@ import com.eightam.lab.repository.DrinkRepository;
 import com.eightam.lab.repository.LabUserRepository;
 import com.eightam.lab.repository.MerchantRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
@@ -41,14 +42,18 @@ public class DataInitializer {
                     "8am实验室Lab Bar",
                     "138-0000-0001",
                     "广州·珠江新城IFS北塔1F",
-                    "晨间灵感在此觉醒"
+                    "晨间灵感在此觉醒",
+                    23.12911,
+                    113.264385
             ));
 
             Merchant coCreation = merchantRepository.save(new Merchant(
                     "8am共创栈",
                     "138-0000-0002",
                     "深圳·后海万象城L3",
-                    "和创作者一起发明饮品风味"
+                    "和创作者一起发明饮品风味",
+                    22.521307,
+                    113.938896
             ));
 
             drinkRepository.save(new Drink(
@@ -85,6 +90,11 @@ public class DataInitializer {
                     "https://images.8amlab.cn/avatars/admin-evelyn.png");
             admin.setUsername("admin");
             admin.setPasswordHash(passwordEncoder.encode("admin123"));
+            admin.setFamilyName("Zhang");
+            admin.setGivenName("Evelyn");
+            admin.setGender("女");
+            admin.setPhone("13800000001");
+            admin.setBirthday(LocalDate.of(1992, 3, 18));
             labUserRepository.save(admin);
 
             LabUser merchant = new LabUser("Noah", UserRole.MERCHANT,
@@ -92,12 +102,22 @@ public class DataInitializer {
             merchant.setUsername("merchant");
             merchant.setPasswordHash(passwordEncoder.encode("merchant123"));
             merchant.setManagedMerchant(labBar);
+            merchant.setFamilyName("Li");
+            merchant.setGivenName("Noah");
+            merchant.setGender("男");
+            merchant.setPhone("13800000002");
+            merchant.setBirthday(LocalDate.of(1990, 11, 5));
             labUserRepository.save(merchant);
 
             LabUser customer = new LabUser("Iris", UserRole.CUSTOMER,
                     "https://images.8amlab.cn/avatars/customer-iris.png");
             customer.setUsername("iris");
             customer.setPasswordHash(passwordEncoder.encode("iris123"));
+            customer.setFamilyName("Chen");
+            customer.setGivenName("Iris");
+            customer.setGender("女");
+            customer.setPhone("13800000003");
+            customer.setBirthday(LocalDate.of(1995, 7, 9));
             labUserRepository.save(customer);
 
             List<Drink> drinks = drinkRepository.findAll();

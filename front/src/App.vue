@@ -398,6 +398,34 @@
         </div>
       </section>
 
+      <section v-else-if="activeTab === 'profileLanguage'" class="panel profile language-panel">
+        <button class="ghost back-link" type="button" @click="activeTab = 'profile'">‹ 返回我的</button>
+        <div class="language-card">
+          <header>
+            <p class="language-kicker">界面语言</p>
+            <h2>请选择常用语言</h2>
+            <small>系统会尽量保持中文显示，也支持英文界面方便境外顾客</small>
+          </header>
+          <ul class="language-list">
+            <li v-for="option in languageOptions" :key="option.value">
+              <button
+                type="button"
+                :class="{ active: currentLanguage === option.value }"
+                @click="changeLanguage(option.value)"
+              >
+                <div>
+                  <strong>{{ option.label }}</strong>
+                  <span>{{ option.desc }}</span>
+                </div>
+                <span class="status" v-if="currentLanguage === option.value">使用中</span>
+              </button>
+            </li>
+          </ul>
+          <p class="language-tip">切换后部分文案可能需要刷新或重新进入页面才会更新。</p>
+          <p class="feedback" v-if="languageFeedback">{{ languageFeedback }}</p>
+        </div>
+      </section>
+
       <section v-else-if="activeTab === 'profileSettings'" class="panel profile settings-panel">
         <header class="settings-header">
           <button class="ghost back-link" type="button" @click="activeTab = 'profile'">‹ 返回</button>
@@ -495,7 +523,13 @@
         <span>灵感</span>
       </button>
       <button
-        :class="{ active: activeTab === 'profile' || activeTab === 'profileLogin' || activeTab === 'profileSettings' }"
+        :class="{
+          active:
+            activeTab === 'profile' ||
+            activeTab === 'profileLogin' ||
+            activeTab === 'profileSettings' ||
+            activeTab === 'profileLanguage'
+        }"
         @click="activeTab = 'profile'"
       >
         <span class="icon">👤</span>
@@ -528,7 +562,8 @@ import {
   updateMerchantOrderStatus,
   fetchUserProfile,
   updateUserProfile,
-  uploadAvatar
+  uploadAvatar,
+  createAlipayPayment
 } from './services/api'
 
 const roles = [
@@ -829,9 +864,17 @@ const profileHighlights = computed(() => {
 const profileActions = [
   { key: 'orders', icon: '🧾', label: '订单中心', desc: '查看制作进度与历史' },
   { key: 'info', icon: '👤', label: '个人资料', desc: '昵称、手机号与生日' },
-  { key: 'language', icon: '🌐', label: '语言设置', desc: '中文 / English' },
+  { key: 'language', icon: '🌐', label: '语言设置', desc: '切换中文或英文界面' },
   { key: 'about', icon: '✨', label: '关于我们', desc: '品牌故事与灵感' }
 ]
+
+const languageOptions = [
+  { value: 'zh-CN', label: '简体中文', desc: '推荐 · 贴合微信小程序体验' },
+  { value: 'en-US', label: 'English', desc: '如需英文界面可选择' }
+]
+const languageStorageKey = '8am-lab-language'
+const currentLanguage = ref('zh-CN')
+const languageFeedback = ref('')
 
 const handleProfileAction = (key) => {
   if (key === 'orders') {
@@ -850,13 +893,47 @@ const handleProfileAction = (key) => {
       ensureProfileHydrated()
       break
     case 'language':
-      authFeedback.value = '多语言切换即将上线'
+      languageFeedback.value = ''
+      hydrateLanguagePreference()
+      activeTab.value = 'profileLanguage'
       break
     case 'about':
       authFeedback.value = '8AM 实验室 · 咖啡巴斯克'
       break
     default:
       break
+  }
+}
+
+const applyLanguagePreference = (value) => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = value === 'en-US' ? 'en' : 'zh-Hans'
+  }
+}
+
+const hydrateLanguagePreference = () => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+  try {
+    const saved = localStorage.getItem(languageStorageKey)
+    if (saved && languageOptions.some((option) => option.value === saved)) {
+      currentLanguage.value = saved
+      applyLanguagePreference(saved)
+    }
+  } catch (error) {
+    console.warn('语言设置读取失败', error)
+  }
+}
+
+const changeLanguage = (value) => {
+  if (!languageOptions.some((option) => option.value === value)) return
+  currentLanguage.value = value
+  applyLanguagePreference(value)
+  languageFeedback.value = value === 'zh-CN' ? '已切换为简体中文界面' : '已切换为英文界面'
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(languageStorageKey, value)
+  } catch (error) {
+    console.warn('语言设置保存失败', error)
   }
 }
 
@@ -1058,8 +1135,9 @@ const handleCheckoutSubmit = async () => {
   try {
     const merchantId = Number(selectedMerchantId.value)
     const pickupNote = [pickupMethodLabel.value, orderRemark.value.trim()].filter(Boolean).join(' · ')
+    const createdOrderIds = []
     for (const item of sharedCartItems.value) {
-      await createOrder({
+      const order = await createOrder({
         customerName: orderContactName.value || '灵感顾客',
         contactPhone: orderContactPhone.value,
         drinkId: Number(item.drinkId),
@@ -1067,15 +1145,35 @@ const handleCheckoutSubmit = async () => {
         quantity: Number(item.quantity) || 1,
         pickupTime: pickupNote || pickupMethodLabel.value
       })
+      if (order?.id) {
+        createdOrderIds.push(order.id)
+      }
+    }
+    if (!createdOrderIds.length) {
+      checkoutFeedback.value = '未能创建订单，请稍后再试'
+      return
+    }
+    checkoutFeedback.value = '订单已创建，正在拉起支付宝'
+    const paymentReturnUrl =
+      typeof window !== 'undefined' ? `${window.location.origin}/` : undefined
+    const payment = await createAlipayPayment({
+      orderIds: createdOrderIds,
+      returnUrl: paymentReturnUrl
+    })
+    if (payment?.payUrl && typeof window !== 'undefined') {
+      const opened = window.open(payment.payUrl, '_blank', 'noopener')
+      if (!opened) {
+        window.location.href = payment.payUrl
+      }
     }
     await loadSharedResources()
     orderRemark.value = ''
     remarkEditorOpen.value = false
     clearSharedCart()
-    checkoutFeedback.value = '订单已提交，稍后可在“我的”查看进度'
+    checkoutFeedback.value = '请在支付宝完成支付，稍后可在“我的-订单中心”查看进度'
     activeTab.value = 'home'
   } catch (error) {
-    checkoutFeedback.value = error?.response?.data?.message || '下单失败，请稍后再试'
+    checkoutFeedback.value = error?.response?.data?.message || '下单或拉起支付失败，请稍后再试'
   } finally {
     checkoutSubmitting.value = false
   }
@@ -1400,6 +1498,12 @@ watch(
     if (tab !== 'profileSettings') {
       profileSaving.value = false
     }
+    if (tab === 'profileLanguage') {
+      hydrateLanguagePreference()
+    }
+    if (tab !== 'profileLanguage') {
+      languageFeedback.value = ''
+    }
   }
 )
 
@@ -1445,6 +1549,7 @@ watch(
 )
 
 onMounted(async () => {
+  hydrateLanguagePreference()
   try {
     await loadSharedResources()
   } catch (error) {
@@ -2520,6 +2625,96 @@ button.danger {
 .action-arrow {
   color: rgba(148, 163, 184, 0.85);
   font-size: 1.2rem;
+}
+
+.language-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.language-card {
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  display: grid;
+  gap: 16px;
+}
+
+.language-card header {
+  display: grid;
+  gap: 6px;
+}
+
+.language-kicker {
+  margin: 0;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.85rem;
+}
+
+.language-card header h2 {
+  margin: 0;
+}
+
+.language-card header small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.language-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.language-list button {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.35);
+  padding: 14px 16px;
+  color: #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+}
+
+.language-list button div {
+  display: grid;
+  gap: 4px;
+}
+
+.language-list button strong {
+  font-size: 1rem;
+}
+
+.language-list button span {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
+}
+
+.language-list button .status {
+  font-size: 0.85rem;
+  color: #0f172a;
+  background: rgba(56, 189, 248, 0.85);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+.language-list button.active {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(56, 189, 248, 0.18);
+}
+
+.language-tip {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
 }
 
 .profile-auth .primary,

@@ -55,6 +55,7 @@ import { reactive, ref, watch } from 'vue'
 const props = defineProps({
   drinks: { type: Array, default: () => [] },
   merchants: { type: Array, default: () => [] },
+  preferredMerchantId: { type: [String, Number], default: null },
   submitOrder: { type: Function, required: true }
 })
 
@@ -85,11 +86,22 @@ watch(
 watch(
   () => props.merchants,
   (list) => {
-    if (!form.merchantId && list.length) {
-      form.merchantId = list[0].id
+    if (props.preferredMerchantId) {
+      form.merchantId = String(props.preferredMerchantId)
+    } else if (!form.merchantId && list.length) {
+      form.merchantId = String(list[0].id)
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => props.preferredMerchantId,
+  (value) => {
+    if (value) {
+      form.merchantId = String(value)
+    }
+  }
 )
 
 const handleSubmit = async () => {
@@ -102,8 +114,12 @@ const handleSubmit = async () => {
     if (props.drinks.length) {
       form.drinkId = props.drinks[0].id
     }
-    if (props.merchants.length) {
-      form.merchantId = props.merchants[0].id
+    if (props.preferredMerchantId) {
+      form.merchantId = String(props.preferredMerchantId)
+    } else if (props.merchants.length) {
+      form.merchantId = String(props.merchants[0].id)
+    } else {
+      form.merchantId = ''
     }
     message.value = '预约成功，我们会在制作完成后短信提醒你。'
     success.value = true
