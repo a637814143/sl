@@ -2369,8 +2369,9 @@ const loadMerchantBoard = async () => {
   merchantBoard.orders = snapshot.orders
 }
 
-const loadSharedResources = async () => {
-  const drinks = await fetchCatalogDrinks()
+const loadSharedResources = async (merchantId = selectedMerchantId.value) => {
+  const params = merchantId ? { merchantId: Number(merchantId) } : undefined
+  const drinks = await fetchCatalogDrinks(params)
   productLibrary.value = drinks.map((drink, index) => ({
     ...drink,
     category: normalizeCategory(drink.category || drink.type || productCategories[index % productCategories.length].value)
@@ -2398,7 +2399,7 @@ const submitCustomerOrder = async (payload) => {
     merchantId: Number(payload.merchantId)
   })
   await loadMerchantBoard()
-  await loadSharedResources()
+  await loadSharedResources(selectedMerchantId.value)
 }
 
 const changeOrderStatus = async (orderId, status) => {
@@ -2511,6 +2512,20 @@ watch(
       authForm.merchantId = ''
     } else if (!authForm.merchantId && merchants.value.length) {
       authForm.merchantId = merchants.value[0].id
+    }
+  }
+)
+
+watch(
+  () => selectedMerchantId.value,
+  async (merchantId, previous) => {
+    if (merchantId === previous) {
+      return
+    }
+    try {
+      await loadSharedResources(merchantId || undefined)
+    } catch (error) {
+      console.error('Failed to refresh catalog for merchant', error)
     }
   }
 )

@@ -54,7 +54,7 @@ public class MerchantOrderService {
     private MerchantOrderView toView(DrinkOrder order) {
         return new MerchantOrderView(
                 order.getId(),
-                order.getDrink().getName(),
+                order.resolveProductName(),
                 order.getQuantity(),
                 order.getStatus().name(),
                 order.getPickupTime(),

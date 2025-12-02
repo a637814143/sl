@@ -1,45 +1,48 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.entity.Drink;
-import com.eightam.lab.entity.DrinkOrder;
-import com.eightam.lab.entity.Merchant;
-import com.eightam.lab.entity.OrderStatus;
 import com.eightam.lab.dto.CreateOrderRequest;
 import com.eightam.lab.dto.OrderOverview;
 import com.eightam.lab.dto.OrderResponse;
+import com.eightam.lab.entity.DrinkOrder;
+import com.eightam.lab.entity.Merchant;
+import com.eightam.lab.entity.MerchantProduct;
+import com.eightam.lab.entity.OrderStatus;
+import com.eightam.lab.entity.Product;
 import com.eightam.lab.repository.DrinkOrderRepository;
-import com.eightam.lab.repository.DrinkRepository;
+import com.eightam.lab.repository.MerchantProductRepository;
 import com.eightam.lab.repository.MerchantRepository;
+import java.time.LocalDateTime;
+import java.util.Objects;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
 public class OrderService {
 
     private final DrinkOrderRepository drinkOrderRepository;
-    private final DrinkRepository drinkRepository;
+    private final MerchantProductRepository merchantProductRepository;
     private final MerchantRepository merchantRepository;
 
     public OrderService(DrinkOrderRepository drinkOrderRepository,
-                        DrinkRepository drinkRepository,
+                        MerchantProductRepository merchantProductRepository,
                         MerchantRepository merchantRepository) {
         this.drinkOrderRepository = drinkOrderRepository;
-        this.drinkRepository = drinkRepository;
+        this.merchantProductRepository = merchantProductRepository;
         this.merchantRepository = merchantRepository;
     }
 
     @Transactional
     public OrderResponse placeOrder(CreateOrderRequest request) {
-        Drink drink = drinkRepository.findById(request.drinkId())
-                .orElseThrow(() -> new IllegalArgumentException("找不到对应的饮品"));
-        if (!drink.isAvailable()) {
-            throw new IllegalStateException("该饮品暂时无法购买");
+        MerchantProduct merchantProduct = merchantProductRepository.findByIdAndMerchantId(
+                        request.drinkId(), request.merchantId())
+                .orElseThrow(() -> new IllegalArgumentException("未找到对应的门店商品"));
+        if (!merchantProduct.isAvailable()) {
+            throw new IllegalStateException("该商品暂不可售");
         }
         Merchant merchant = merchantRepository.findById(request.merchantId())
-                .orElseThrow(() -> new IllegalArgumentException("找不到对应的门店"));
+                .orElseThrow(() -> new IllegalArgumentException("未找到对应的门店"));
+        Product product = merchantProduct.getProduct();
 
         DrinkOrder newOrder = new DrinkOrder(
                 request.customerName(),
@@ -47,8 +50,11 @@ public class OrderService {
                 request.quantity(),
                 request.pickupTime(),
                 OrderStatus.RECEIVED,
-                drink,
                 merchant,
+                merchantProduct,
+                product,
+                merchantProduct.getEffectivePrice(),
+                merchantProduct.getDisplayName(),
                 LocalDateTime.now()
         );
 
@@ -63,8 +69,9 @@ public class OrderService {
         long completed = drinkOrderRepository.countByStatus(OrderStatus.COMPLETED);
         String topDrink = drinkOrderRepository.findTopSellingDrinkNames(PageRequest.of(0, 1))
                 .stream()
+                .filter(Objects::nonNull)
                 .findFirst()
-                .orElse("探索8am人气风味");
+                .orElse("探索8AM人气风味");
         return new OrderOverview(received, preparing, ready, completed, topDrink);
     }
 
@@ -76,7 +83,7 @@ public class OrderService {
                 order.getQuantity(),
                 order.getPickupTime(),
                 order.getStatus().name(),
-                order.getDrink().getName(),
+                order.resolveProductName(),
                 order.getMerchant().getName(),
                 order.getCreatedAt()
         );

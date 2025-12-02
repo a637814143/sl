@@ -2,8 +2,8 @@ package com.eightam.lab.service;
 
 import com.eightam.lab.dto.AdminDashboardResponse;
 import com.eightam.lab.repository.DrinkOrderRepository;
-import com.eightam.lab.repository.DrinkRepository;
 import com.eightam.lab.repository.LabUserRepository;
+import com.eightam.lab.repository.MerchantProductRepository;
 import com.eightam.lab.repository.MerchantRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -11,23 +11,23 @@ import org.springframework.stereotype.Service;
 @Service
 public class DashboardService {
 
-    private final DrinkRepository drinkRepository;
+    private final MerchantProductRepository merchantProductRepository;
     private final MerchantRepository merchantRepository;
     private final DrinkOrderRepository drinkOrderRepository;
     private final LabUserRepository labUserRepository;
 
-    public DashboardService(DrinkRepository drinkRepository,
+    public DashboardService(MerchantProductRepository merchantProductRepository,
                             MerchantRepository merchantRepository,
                             DrinkOrderRepository drinkOrderRepository,
                             LabUserRepository labUserRepository) {
-        this.drinkRepository = drinkRepository;
+        this.merchantProductRepository = merchantProductRepository;
         this.merchantRepository = merchantRepository;
         this.drinkOrderRepository = drinkOrderRepository;
         this.labUserRepository = labUserRepository;
     }
 
     public AdminDashboardResponse loadAdminSummary() {
-        long drinkCount = drinkRepository.count();
+        long drinkCount = merchantProductRepository.count();
         long merchantCount = merchantRepository.count();
         long orderCount = drinkOrderRepository.count();
         long userCount = labUserRepository.count();

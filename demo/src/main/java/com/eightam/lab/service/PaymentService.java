@@ -133,14 +133,14 @@ public class PaymentService {
 
     private BigDecimal calculateTotalAmount(List<DrinkOrder> orders) {
         return orders.stream()
-                .map(order -> order.getDrink().getPrice()
+                .map(order -> order.resolveUnitPrice()
                         .multiply(BigDecimal.valueOf(order.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private String buildSubject(List<DrinkOrder> orders) {
         if (orders.size() == 1) {
-            return "8AM灵感饮品-" + orders.get(0).getDrink().getName();
+            return "8AM灵感饮品-" + orders.get(0).resolveProductName();
         }
         return "8AM灵感饮品等" + orders.size() + "件";
     }

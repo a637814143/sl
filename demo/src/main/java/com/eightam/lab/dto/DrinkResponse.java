@@ -2,14 +2,20 @@ package com.eightam.lab.dto;
 
 import java.math.BigDecimal;
 
+import java.time.LocalDateTime;
+
 public class DrinkResponse {
     private Long id;
+    private String skuCode;
     private String name;
     private BigDecimal price;
     private String description;
     private String imageUrl;
     private String flavorProfile;
+    private String category;
     private boolean available;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public Long getId() {
         return id;
@@ -17,6 +23,14 @@ public class DrinkResponse {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getSkuCode() {
+        return skuCode;
+    }
+
+    public void setSkuCode(String skuCode) {
+        this.skuCode = skuCode;
     }
 
     public String getName() {
@@ -59,11 +73,35 @@ public class DrinkResponse {
         this.flavorProfile = flavorProfile;
     }
 
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
     public boolean isAvailable() {
         return available;
     }
 
     public void setAvailable(boolean available) {
         this.available = available;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

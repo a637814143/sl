@@ -1,37 +1,52 @@
 package com.eightam.lab.service;
 
-import com.eightam.lab.entity.Drink;
 import com.eightam.lab.dto.DrinkSummary;
-import com.eightam.lab.repository.DrinkRepository;
+import com.eightam.lab.entity.MerchantProduct;
+import com.eightam.lab.repository.MerchantProductRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DrinkCatalogService {
 
-    private final DrinkRepository drinkRepository;
+    private final MerchantProductRepository merchantProductRepository;
 
-    public DrinkCatalogService(DrinkRepository drinkRepository) {
-        this.drinkRepository = drinkRepository;
+    public DrinkCatalogService(MerchantProductRepository merchantProductRepository) {
+        this.merchantProductRepository = merchantProductRepository;
     }
 
-    public List<DrinkSummary> getAvailableDrinks() {
-        return drinkRepository.findByAvailableTrueOrderByNameAsc()
-                .stream()
+    @Transactional(readOnly = true)
+    public List<DrinkSummary> getAvailableDrinks(Long merchantId) {
+        List<MerchantProduct> merchantProducts = merchantId != null
+                ? merchantProductRepository.findByMerchantIdAndAvailableTrueOrderByDisplayOrderAscIdAsc(merchantId)
+                : merchantProductRepository.findByAvailableTrueOrderByDisplayOrderAscIdAsc();
+        return merchantProducts.stream()
                 .map(this::toSummary)
                 .toList();
     }
 
-    private DrinkSummary toSummary(Drink drink) {
-        String merchantName = drink.getMerchant() != null ? drink.getMerchant().getName() : "8am实验室";
+    private DrinkSummary toSummary(MerchantProduct merchantProduct) {
+        var merchant = merchantProduct.getMerchant();
+        var product = merchantProduct.getProduct();
         return new DrinkSummary(
-                drink.getId(),
-                drink.getName(),
-                drink.getPrice(),
-                drink.getDescription(),
-                drink.getImageUrl(),
-                drink.getFlavorProfile(),
-                merchantName
+                merchantProduct.getId(),
+                product != null ? product.getId() : null,
+                merchant != null ? merchant.getId() : null,
+                merchant != null ? merchant.getName() : "8AM 灵感实验室",
+                product != null ? product.getSkuCode() : null,
+                merchantProduct.getDisplayName(),
+                product != null ? product.getBasePrice() : null,
+                merchantProduct.getEffectivePrice(),
+                merchantProduct.getDescription(),
+                merchantProduct.getImageUrl(),
+                merchantProduct.getFlavorProfile(),
+                merchantProduct.getCategory(),
+                merchantProduct.isAvailable(),
+                merchantProduct.getDailyStockLimit(),
+                merchantProduct.getAvailableStock(),
+                merchantProduct.getAvailableStart(),
+                merchantProduct.getAvailableEnd()
         );
     }
 }

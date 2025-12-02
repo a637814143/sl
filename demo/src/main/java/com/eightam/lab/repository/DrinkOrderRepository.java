@@ -21,6 +21,13 @@ public interface DrinkOrderRepository extends JpaRepository<DrinkOrder, Long> {
 
     List<DrinkOrder> findAllByPaymentTradeNo(String paymentTradeNo);
 
-    @Query("SELECT o.drink.name FROM DrinkOrder o GROUP BY o.drink.name ORDER BY SUM(o.quantity) DESC")
+    @Query("""
+            SELECT COALESCE(o.productNameSnapshot, mp.customName, p.name)
+            FROM DrinkOrder o
+            LEFT JOIN o.merchantProduct mp
+            LEFT JOIN o.product p
+            GROUP BY COALESCE(o.productNameSnapshot, mp.customName, p.name)
+            ORDER BY SUM(o.quantity) DESC
+            """)
     List<String> findTopSellingDrinkNames(Pageable pageable);
 }

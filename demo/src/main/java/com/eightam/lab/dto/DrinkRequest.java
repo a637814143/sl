@@ -8,6 +8,9 @@ import java.math.BigDecimal;
 
 public class DrinkRequest {
 
+    @Size(max = 64, message = "SKU 需在64字符以内")
+    private String skuCode;
+
     @NotBlank(message = "饮品名称不能为空")
     @Size(max = 128, message = "饮品名称长度需在128字符以内")
     private String name;
@@ -15,6 +18,9 @@ public class DrinkRequest {
     @NotNull(message = "请设置饮品价格")
     @DecimalMin(value = "0.0", inclusive = false, message = "饮品价格需大于0")
     private BigDecimal price;
+
+    @Size(max = 64, message = "饮品分类需在64字符以内")
+    private String category;
 
     @Size(max = 512, message = "饮品描述需在512字符以内")
     private String description;
@@ -26,6 +32,14 @@ public class DrinkRequest {
     private String flavorProfile;
 
     private boolean available;
+
+    public String getSkuCode() {
+        return skuCode;
+    }
+
+    public void setSkuCode(String skuCode) {
+        this.skuCode = skuCode;
+    }
 
     public String getName() {
         return name;
@@ -41,6 +55,14 @@ public class DrinkRequest {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public String getDescription() {

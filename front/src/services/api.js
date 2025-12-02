@@ -32,7 +32,8 @@ export const updateMerchantOrderStatus = (merchantId, orderId, status) =>
     .patch(`/merchant/orders/${orderId}/status`, { status }, { params: { merchantId } })
     .then((res) => res.data)
 
-export const fetchCatalogDrinks = () => client.get('/drinks').then((res) => res.data)
+export const fetchCatalogDrinks = (params = {}) =>
+  client.get('/drinks', { params }).then((res) => res.data)
 export const fetchMerchants = () => client.get('/merchants').then((res) => res.data)
 export const createOrder = (payload) => client.post('/orders', payload).then((res) => res.data)
 export const fetchOrderOverview = () => client.get('/orders/overview').then((res) => res.data)
