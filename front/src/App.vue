@@ -3,18 +3,110 @@
     <header class="status-bar">8am 实验室 · 清晨饮品站</header>
     <main class="content">
       <section v-if="activeTab === 'home'" class="panel home-panel">
-        <HomeShowcase
-          :drinks="catalogDrinks"
-          :merchants="merchants"
-          :cart-items="sharedCartItems"
-          :cart-summary="sharedCartSummary"
-          :cart-total="sharedCartTotal"
-          :add-to-cart="addCartItem"
-          :increment-item="addCartItem"
-          :decrement-item="decrementCartItem"
-          :clear-cart="clearSharedCart"
-          @checkout="openStorePicker"
-        />
+        <template v-if="!isMerchant">
+          <article class="store-gate" :class="{ empty: !selectedMerchant }">
+            <div>
+              <p class="card-label">{{ selectedMerchant ? '当前门店' : '选择门店' }}</p>
+              <h2>{{ selectedMerchant?.name || '请选择取餐门店' }}</h2>
+              <small>
+                {{
+                  selectedMerchant?.location || '不同门店每日上新不同，请先锁定门店以查看对应菜单。'
+                }}
+              </small>
+            </div>
+            <button class="primary" type="button" @click="openStorePicker">
+              {{ selectedMerchant ? '切换门店' : '立即选择' }}
+            </button>
+          </article>
+          <template v-if="selectedMerchant">
+            <HomeShowcase
+              :drinks="productLibrary"
+              :merchants="merchants"
+              :cart-items="sharedCartItems"
+              :cart-summary="sharedCartSummary"
+              :cart-total="sharedCartTotal"
+              :add-to-cart="addCartItem"
+              :increment-item="addCartItem"
+              :decrement-item="decrementCartItem"
+              :clear-cart="clearSharedCart"
+              @checkout="openStorePicker"
+            />
+          </template>
+          <div v-else class="store-gate-empty">
+            <p>请选择门店后即可浏览今日菜单和推荐。</p>
+            <button class="ghost" type="button" @click="openStorePicker">选择门店</button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="merchant-home">
+            <section class="merchant-carousel-card">
+              <header class="section-header">
+                <div>
+                  <h2>轮播管理</h2>
+                  <p class="section-desc">设置顾客端首页顶部轮播，宣传主打活动与新品。</p>
+                </div>
+                <small>最多 5 张，建议 750×360 像素</small>
+              </header>
+              <div class="carousel-grid">
+                <article v-for="banner in merchantCarousel" :key="banner.id" class="carousel-card">
+                  <div class="carousel-thumb" :style="{ backgroundImage: `url(${banner.imageUrl})` }"></div>
+                  <strong>{{ banner.caption || '主视觉' }}</strong>
+                  <button class="ghost" type="button" @click="removeCarouselItem(banner.id)">移除</button>
+                </article>
+              </div>
+              <div class="menu-add">
+                <input v-model="newCarousel.imageUrl" type="url" placeholder="图片地址" />
+                <input v-model="newCarousel.caption" type="text" placeholder="标题 / 副标题" />
+                <input type="file" accept="image/*" capture="environment" @change="handleCarouselImageUpload" />
+                <small class="upload-hint" v-if="carouselImageUploading">图片上传中...</small>
+                <small class="upload-hint" v-else-if="newCarousel.imageUrl">已上传，可生成轮播。</small>
+                <div class="image-preview" v-if="newCarousel.imageUrl">
+                  <img :src="newCarousel.imageUrl" alt="轮播图预览" />
+                </div>
+                <button class="primary" type="button" :disabled="!newCarousel.imageUrl" @click="addCarouselItem">
+                  新增轮播
+                </button>
+              </div>
+              <p class="feedback" v-if="merchantHomeNotice">{{ merchantHomeNotice }}</p>
+            </section>
+
+            <section class="merchant-recommend-card">
+              <header class="section-header">
+                <div>
+                  <h2>今日推荐</h2>
+                  <p class="section-desc">对应顾客端首页四个专区，快速配置今日推荐饮品。</p>
+                </div>
+                <button class="ghost" type="button" @click="syncRecommendationsFromMenu">沿用上架商品</button>
+              </header>
+              <div class="recommend-grid">
+                <article v-for="slot in recommendationSlots" :key="slot.key">
+                  <p class="card-label">{{ slot.label }}</p>
+                  <select v-model="merchantRecommendations[slot.key]">
+                    <option value="">选择饮品</option>
+                    <option v-for="drink in recommendationOptions" :key="drink.id" :value="drink.name">
+                      {{ drink.name }}
+                    </option>
+                  </select>
+                  <small>{{ merchantRecommendations[slot.key] ? '已同步至顾客端' : '尚未设置' }}</small>
+                </article>
+              </div>
+            </section>
+
+            <section class="merchant-home-actions">
+              <header class="section-header">
+                <div>
+                  <h2>快速操作</h2>
+                  <p class="section-desc">进入工作台或通知顾客当日变化。</p>
+                </div>
+              </header>
+              <div class="action-grid">
+                <button class="primary" type="button" @click="activeTab = 'order'">打开工作台 · 管理商品</button>
+                <button class="ghost" type="button" @click="announceStatus">发送营业状态通知</button>
+                <button class="ghost" type="button" @click="syncRecommendationsFromMenu">同步推荐到顾客端</button>
+              </div>
+            </section>
+          </div>
+        </template>
       </section>
 
       <section v-else-if="activeTab === 'order' && showWorkbench" class="panel">
@@ -25,98 +117,325 @@
           </div>
         </template>
         <template v-else-if="isAdmin">
-          <div class="panel-header">
-            <h1 class="heading">饮品管理</h1>
-            <p class="subheading">新增、编辑或下架饮品，保持菜单新鲜。</p>
-          </div>
-          <form class="form" @submit.prevent="submitDrink">
-            <div class="form-row">
-              <label>饮品名称</label>
-              <input v-model="drinkForm.name" type="text" placeholder="请输入饮品名称" />
-              <span class="error" v-if="drinkErrors.name">{{ drinkErrors.name }}</span>
-            </div>
-            <div class="form-row">
-              <label>价格</label>
-              <input v-model="drinkForm.price" type="number" step="0.01" min="0" placeholder="例：28" />
-              <span class="error" v-if="drinkErrors.price">{{ drinkErrors.price }}</span>
-            </div>
-            <div class="form-row">
-              <label>风味标签</label>
-              <input v-model="drinkForm.flavorProfile" type="text" placeholder="例：果酸 · 花香" />
-            </div>
-            <div class="form-row">
-              <label>图片地址</label>
-              <input v-model="drinkForm.imageUrl" type="url" placeholder="可选：饮品展示图" />
-            </div>
-            <div class="form-row">
-              <label>饮品描述</label>
-              <textarea v-model="drinkForm.description" rows="3" placeholder="一句话描述你的饮品故事"></textarea>
-            </div>
-            <div class="form-row inline">
-              <label>当前状态</label>
-              <label class="switch">
-                <input v-model="drinkForm.available" type="checkbox" />
-                <span class="slider"></span>
-              </label>
-              <span>{{ drinkForm.available ? '可售' : '停售' }}</span>
-            </div>
-            <div class="actions">
-              <button class="primary" type="submit">{{ drinkForm.id ? '更新饮品' : '新增饮品' }}</button>
-              <button class="ghost" type="button" v-if="drinkForm.id" @click="resetDrinkForm">取消编辑</button>
-            </div>
-          </form>
-
-          <ul class="drink-list">
-            <li v-for="drink in adminDrinks" :key="drink.id" class="drink-item">
+          <div class="admin-workbench">
+            <header class="panel-header admin-hero">
               <div>
-                <h3>{{ drink.name }}</h3>
-                <p class="meta">¥ {{ Number(drink.price).toFixed(2) }} · {{ drink.flavorProfile || '待定义风味' }}</p>
-                <p class="desc">{{ drink.description || '—' }}</p>
+                <p class="eyebrow">科学化管理</p>
+                <h1 class="heading">8AM 运营驾驶舱</h1>
+                <p class="subheading">实时掌握饮品、订单、门店与会员动态，守护品牌体验。</p>
               </div>
-              <div class="item-actions">
-                <button class="ghost" @click="editDrink(drink)">编辑</button>
-                <button class="danger" @click="deleteDrink(drink.id)">删除</button>
+              <div class="admin-meta">
+                <p>当前账号</p>
+                <strong>{{ currentUser?.displayName || currentUser?.username }}</strong>
+                <small>{{ roleLabel(currentUser?.role) }}</small>
+                <button class="ghost" type="button" @click="loadAdminResources">刷新概览</button>
               </div>
-            </li>
-          </ul>
+            </header>
+
+            <nav class="admin-subtabs">
+              <button
+                v-for="tab in adminPanels"
+                :key="tab.key"
+                type="button"
+                :class="{ active: adminActivePanel === tab.key }"
+                @click="adminActivePanel = tab.key"
+              >
+                <span class="icon">{{ tab.icon }}</span>
+                <div>
+                  <strong>{{ tab.label }}</strong>
+                  <small>{{ tab.desc }}</small>
+                </div>
+              </button>
+            </nav>
+
+            <section v-if="adminActivePanel === 'dashboard'" class="admin-section">
+              <div class="dashboard-grid admin-kpi-grid">
+                <article
+                  v-for="card in adminKpis"
+                  :key="card.label"
+                  class="dashboard-card"
+                  :class="{ highlight: card.highlight }"
+                >
+                  <p class="card-label">{{ card.label }}</p>
+                  <strong>{{ card.value }}</strong>
+                  <span>{{ card.desc }}</span>
+                </article>
+              </div>
+              <div class="dashboard-secondary">
+                <article class="timeline-card">
+                  <header>
+                    <p class="card-label">订单流程</p>
+                    <small>实时状态</small>
+                  </header>
+                  <ul class="pipeline">
+                    <li v-for="stage in adminPipeline" :key="stage.label">
+                      <div class="pipeline-head">
+                        <strong>{{ stage.value }}</strong>
+                        <span>{{ stage.label }}</span>
+                      </div>
+                      <p>{{ stage.desc }}</p>
+                      <div class="pipeline-bar">
+                        <span :style="{ width: stage.ratio + '%' }"></span>
+                      </div>
+                    </li>
+                  </ul>
+                </article>
+                <article class="insight-card">
+                  <header>
+                    <p class="card-label">今日焦点</p>
+                    <small>来自系统巡检</small>
+                  </header>
+                  <h3 class="insight-title">{{ adminFocus.title }}</h3>
+                  <p class="insight-desc">{{ adminFocus.desc }}</p>
+                  <div class="insight-actions">
+                    <button class="primary" type="button" @click="adminActivePanel = 'network'">前往门店网络</button>
+                    <button class="ghost" type="button" @click="handleAdminShortcut(adminFocus.title)">加入监控</button>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section v-else-if="adminActivePanel === 'network'" class="admin-section">
+              <header class="section-header">
+                <div>
+                  <h2>门店网络</h2>
+                  <p class="section-desc">掌握排队 · 排班调度 · 跨城协同。</p>
+                </div>
+                <button class="ghost" type="button" @click="handleAdminShortcut('发布调度指令')">调度看板</button>
+              </header>
+              <div class="pipeline-grid">
+                <article v-for="stage in adminPipeline" :key="stage.label" class="order-stage-card">
+                  <header>
+                    <p class="card-label">{{ stage.label }}</p>
+                    <strong>{{ stage.value }}</strong>
+                  </header>
+                  <p>{{ stage.desc }}</p>
+                  <button class="ghost" type="button" @click="handleAdminShortcut(stage.label)">推送调度</button>
+                </article>
+              </div>
+              <div class="order-hints">
+                <p>{{ adminAutomationHint }}</p>
+              </div>
+              <div class="store-grid">
+                <article v-for="store in adminStoreCards" :key="store.id" class="store-card">
+                  <header>
+                    <strong>{{ store.name }}</strong>
+                    <span class="status-chip" :class="store.statusKey">{{ store.status }}</span>
+                  </header>
+                  <p>{{ store.location || '地址待完善' }}</p>
+                  <ul>
+                    <li>排队：{{ store.queue }}</li>
+                    <li>产能：{{ store.capacity }}</li>
+                    <li>负责人：{{ store.manager }}</li>
+                  </ul>
+                  <button class="ghost" type="button" @click="handleAdminShortcut(store.name + ' 调度')">调度门店</button>
+                </article>
+                <article v-if="!adminStoreCards.length" class="store-empty">
+                  暂无门店数据，请先通过商家端同步门店信息后刷新。
+                </article>
+              </div>
+            </section>
+
+            <section v-else-if="adminActivePanel === 'marketing'" class="admin-section">
+              <header class="section-header">
+                <div>
+                  <h2>营销与会员</h2>
+                  <p class="section-desc">一键配置会员权益、订阅提醒与活动海报。</p>
+                </div>
+                <button class="ghost" type="button" @click="handleAdminShortcut('会员推送排期')">生成排期</button>
+              </header>
+              <div class="campaign-grid">
+                <article v-for="campaign in adminCampaigns" :key="campaign.title" class="campaign-card">
+                  <p class="card-label">{{ campaign.type }}</p>
+                  <h3>{{ campaign.title }}</h3>
+                  <p>{{ campaign.desc }}</p>
+                  <button class="primary" type="button" @click="handleAdminShortcut(campaign.title)">{{ campaign.action }}</button>
+                </article>
+              </div>
+            </section>
+
+            <section v-else class="admin-section">
+              <header class="section-header">
+                <div>
+                  <h2>系统配置</h2>
+                  <p class="section-desc">权限、审计、消息模板统一管理。</p>
+                </div>
+                <button class="ghost" type="button" @click="handleAdminShortcut('发布灰度版本')">发布灰度</button>
+              </header>
+              <ul class="settings-list">
+                <li v-for="item in adminSettings" :key="item.label">
+                  <div>
+                    <strong>{{ item.label }}</strong>
+                    <p>{{ item.desc }}</p>
+                  </div>
+                  <button class="ghost" type="button" @click="handleAdminShortcut(item.label)">{{ item.action }}</button>
+                </li>
+              </ul>
+            </section>
+
+            <p class="feedback admin-feedback" v-if="adminCommandFeedback">{{ adminCommandFeedback }}</p>
+          </div>
         </template>
         <template v-else-if="isMerchant">
-          <div class="panel-header">
-            <h1 class="heading">门店接单工作台</h1>
-            <p class="subheading">实时查看并更新 {{ merchantSnapshot?.merchantName || '' }} 的订单进度。</p>
-          </div>
-          <div class="order-board" v-if="merchantBoard.orders.length">
-            <article v-for="order in merchantBoard.orders" :key="order.id" class="order-card">
+          <div class="merchant-workbench">
+            <section class="merchant-status-card">
               <header>
-                <h3>{{ order.drinkName }} × {{ order.quantity }}</h3>
-                <span class="status" :class="order.status.toLowerCase()">{{ statusLabel(order.status) }}</span>
+                <div>
+                  <p class="card-label">今日门店</p>
+                  <h1 class="heading">{{ merchantSnapshot?.merchantName || '我的门店' }}</h1>
+                  <p class="subheading">掌握今日目标、库存与营业状态。</p>
+                </div>
+                <div class="status-select">
+                  <label>营业状态</label>
+                  <select v-model="merchantStatus">
+                    <option v-for="option in merchantStatusOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
               </header>
-              <ul>
-                <li>顾客：{{ order.customerName }}</li>
-                <li>联系电话：{{ order.contactPhone }}</li>
-                <li>取杯时间：{{ order.pickupTime || '尽快' }}</li>
-                <li>下单时间：{{ formatTime(order.createdAt) }}</li>
+              <div class="status-note">
+                <label>营业提示</label>
+                <textarea
+                  v-model="merchantStatusNote"
+                  rows="2"
+                  placeholder="例：因培训 14:00-15:00 暂停接单"
+                ></textarea>
+              </div>
+              <ul class="status-metrics">
+                <li>
+                  <p class="card-label">今日目标</p>
+                  <strong>{{ menuStats.target }}</strong>
+                  <small>计划杯数</small>
+                </li>
+                <li>
+                  <p class="card-label">已售数量</p>
+                  <strong>{{ menuStats.sold }}</strong>
+                  <small>含线上订单</small>
+                </li>
+                <li>
+                  <p class="card-label">剩余可售</p>
+                  <strong>{{ menuStats.remaining }}</strong>
+                  <small>售罄自动提醒</small>
+                </li>
+                <li>
+                  <p class="card-label">接单状态</p>
+                  <strong>{{ merchantStatusLabel }}</strong>
+                  <small>{{ merchantAlerts }}</small>
+                </li>
               </ul>
-              <footer>
-                <button
-                  v-for="transition in nextStatuses(order.status)"
-                  :key="transition.code"
-                  class="primary"
-                  @click="changeOrderStatus(order.id, transition.code)"
-                >
-                  {{ transition.label }}
-                </button>
-              </footer>
-            </article>
-          </div>
-          <div class="empty-state" v-else>
-            <h2>暂时没有新订单</h2>
-            <p>喝杯咖啡休息一下，新的灵感随时会来。</p>
+            </section>
+
+            <section class="merchant-menu-card">
+              <header class="section-header">
+                <div>
+                  <h2>今日商品上架</h2>
+                  <p class="section-desc">按门店情况灵活调整份数、时间段与上下架。</p>
+                </div>
+              </header>
+              <div class="menu-add">
+                <select v-model="newMenuDraft.drinkId">
+                  <option disabled value="">选择饮品</option>
+                  <option v-for="drink in dailyMenuCandidates" :key="drink.id" :value="drink.id">
+                    {{ drink.name }}
+                  </option>
+                </select>
+                <input v-model.number="newMenuDraft.target" type="number" min="5" step="5" placeholder="今日份数" />
+                <select v-model="newMenuDraft.slot">
+                  <option v-for="slot in menuSlots" :key="slot.value" :value="slot.value">
+                    {{ slot.label }}
+                  </option>
+                </select>
+                <button class="primary" type="button" :disabled="!canAddMenuItem" @click="addMenuItem">添加商品</button>
+              </div>
+              <div class="menu-grid" v-if="dailyMenu.length">
+                <article v-for="item in dailyMenu" :key="item.id" class="menu-card">
+                  <header>
+                    <strong>{{ item.name }}</strong>
+                    <span class="menu-status" :class="item.status.toLowerCase()">
+                      {{ item.status === 'ACTIVE' ? '可售' : '暂停' }}
+                    </span>
+                  </header>
+                  <p class="menu-slot">时间档：{{ slotLabel(item.slot) }}</p>
+                  <div class="menu-progress">
+                    <div class="bar">
+                      <span :style="{ width: menuProgress(item) + '%' }"></span>
+                    </div>
+                    <small>{{ item.sold }} / {{ item.target }} 杯</small>
+                  </div>
+                  <ul class="menu-meta">
+                    <li>剩余：{{ Math.max(item.target - item.sold, 0) }} 杯</li>
+                    <li>状态：{{ item.status === 'ACTIVE' ? '正常售卖' : '暂停' }}</li>
+                  </ul>
+                  <div class="menu-actions">
+                    <button class="ghost" type="button" @click="recordMenuSale(item, 1)" :disabled="item.sold >= item.target">
+                      售出 1 杯
+                    </button>
+                    <div class="menu-qty">
+                      <button class="ghost" type="button" @click="adjustMenuTarget(item, -5)">-5</button>
+                      <span>今日份数</span>
+                      <button class="ghost" type="button" @click="adjustMenuTarget(item, 5)">+5</button>
+                    </div>
+                    <button class="ghost" type="button" @click="toggleMenuAvailability(item)">
+                      {{ item.status === 'ACTIVE' ? '暂停售卖' : '恢复售卖' }}
+                    </button>
+                  </div>
+                </article>
+              </div>
+              <div class="store-gate-empty" v-else>
+                <p>还没有上架的商品，先从上方选择饮品并设置份数。</p>
+              </div>
+              <p class="feedback" v-if="menuAlert">{{ menuAlert }}</p>
+            </section>
+
+            <section class="merchant-orders">
+              <header class="section-header">
+                <div>
+                  <h2>订单中心</h2>
+                  <p class="section-desc">查看实时队列，按阶段完成出杯。</p>
+                </div>
+              </header>
+              <div class="merchant-pipeline">
+                <article v-for="stage in merchantOrderStages" :key="stage.key">
+                  <p class="card-label">{{ stage.label }}</p>
+                  <strong>{{ stage.value }}</strong>
+                  <small>{{ stage.desc }}</small>
+                </article>
+              </div>
+              <div class="order-board" v-if="merchantBoard.orders.length">
+                <article v-for="order in merchantBoard.orders" :key="order.id" class="order-card">
+                  <header>
+                    <h3>{{ order.drinkName }} × {{ order.quantity }}</h3>
+                    <span class="status" :class="order.status.toLowerCase()">{{ statusLabel(order.status) }}</span>
+                  </header>
+                  <ul>
+                    <li>顾客：{{ order.customerName }}</li>
+                    <li>联系电话：{{ order.contactPhone }}</li>
+                    <li>取餐时间：{{ order.pickupTime || '尽快' }}</li>
+                    <li>下单时间：{{ formatTime(order.createdAt) }}</li>
+                  </ul>
+                  <footer>
+                    <button
+                      v-for="transition in nextStatuses(order.status)"
+                      :key="transition.code"
+                      class="primary"
+                      @click="changeOrderStatus(order.id, transition.code)"
+                    >
+                      {{ transition.label }}
+                    </button>
+                  </footer>
+                </article>
+              </div>
+              <div class="empty-state" v-else>
+                <h2>暂时没有新订单</h2>
+                <p>喝杯咖啡休息一下，新的灵感随时会来。</p>
+              </div>
+            </section>
           </div>
         </template>
         <template v-else>
           <OrderForm
-            :drinks="catalogDrinks"
+            :drinks="productLibrary"
             :merchants="merchants"
             :preferred-merchant-id="selectedMerchantId"
             :submit-order="submitCustomerOrder"
@@ -125,8 +444,86 @@
       </section>
 
       <section v-else-if="activeTab === 'explore'" class="panel explore-panel">
+        <template v-if="isMerchant">
+          <article class="product-library-panel">
+            <header class="section-header">
+              <div>
+                <h2>商品库 · 品类管理</h2>
+                <p class="section-desc">统一维护顾客端与门店共享的商品档案。</p>
+              </div>
+              <small>共 {{ productLibrary.length }} 款商品</small>
+            </header>
+            <form class="product-form" @submit.prevent="saveProduct">
+              <div class="form-grid">
+                <label>
+                  <span>商品分类</span>
+                  <select v-model="productForm.category">
+                    <option v-for="category in productCategories" :key="category.value" :value="category.value">
+                      {{ category.label }}
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  <span>商品名称</span>
+                  <input v-model="productForm.name" type="text" placeholder="例如：桂花拿铁" />
+                  <small class="error" v-if="productErrors.name">{{ productErrors.name }}</small>
+                </label>
+                <label>
+                  <span>销售价格</span>
+                  <input v-model.number="productForm.price" type="number" min="1" step="0.5" placeholder="28" />
+                  <small class="error" v-if="productErrors.price">{{ productErrors.price }}</small>
+                </label>
+                <label>
+                  <span>展示图片</span>
+                  <input v-model="productForm.imageUrl" type="url" placeholder="https://example.com/image.jpg" />
+                  <input type="file" accept="image/*" @change="handleProductImageUpload" />
+                </label>
+                <label class="full-width">
+                  <span>一句话描述</span>
+                  <textarea v-model="productForm.description" rows="2" placeholder="口感或灵感来源"></textarea>
+                </label>
+                <label>
+                  <span>标签（可选）</span>
+                  <input v-model="productForm.tag" type="text" placeholder="季节限定 / 热卖" />
+                </label>
+              </div>
+              <div class="form-actions">
+                <button class="primary" type="submit">
+                  {{ productForm.id ? '更新商品' : '新增商品' }}
+                </button>
+                <button class="ghost" type="button" v-if="productForm.id" @click="resetProductForm">取消编辑</button>
+              </div>
+            </form>
+            <p class="feedback" v-if="merchantHomeNotice">{{ merchantHomeNotice }}</p>
+            <div class="library-groups">
+              <article v-for="category in productCategories" :key="category.value" class="library-group">
+                <header>
+                  <div>
+                    <h3>{{ category.label }}</h3>
+                    <p>{{ category.desc }}</p>
+                  </div>
+                  <small>共 {{ productLibraryByCategory[category.value]?.length || 0 }} 款</small>
+                </header>
+                <ul v-if="productLibraryByCategory[category.value]?.length">
+                  <li v-for="item in productLibraryByCategory[category.value]" :key="item.id">
+                    <div>
+                      <strong>{{ item.name }}</strong>
+                      <span>¥ {{ Number(item.price || 0).toFixed(2) }}</span>
+                      <small>{{ item.description || '暂无描述' }}</small>
+                    </div>
+                    <div class="library-actions">
+                      <button class="ghost" type="button" @click="editProduct(item)">编辑</button>
+                      <button class="danger" type="button" @click="deleteProduct(item.id)">删除</button>
+                    </div>
+                  </li>
+                </ul>
+                <p v-else class="library-empty">暂无该分类商品，欢迎新增。</p>
+              </article>
+            </div>
+          </article>
+        </template>
         <CategoryShowcase
-          :drinks="catalogDrinks"
+          :drinks="productLibrary"
           initial-category="DESSERT"
           :cart-items="sharedCartItems"
           :cart-summary="sharedCartSummary"
@@ -291,7 +688,7 @@
         <div class="profile-hero banner-card">
           <img class="banner-bg" :src="profileBanner" alt="个人背景" />
           <div class="banner-overlay"></div>
-          <button class="ghost icon-only banner-action" type="button" @click="handleProfileAction('info')">⚙</button>
+          <button class="ghost icon-only banner-action" type="button" @click="handleProfileAction('info')">⚙️</button>
           <div class="banner-content">
             <p class="banner-greeting">{{ heroGreeting }}</p>
             <small class="banner-role">{{ currentUser ? heroSubtitle : '未登录 · 游客模式' }}</small>
@@ -310,33 +707,83 @@
           </article>
         </div>
 
-        <div class="profile-actions">
-          <button
-            v-for="item in profileActions"
-            :key="item.key"
-            type="button"
-            @click="handleProfileAction(item.key)"
-          >
-            <div class="action-icon">{{ item.icon }}</div>
-            <div class="action-info">
-              <p>{{ item.label }}</p>
-              <small>{{ item.desc }}</small>
+        <template v-if="isMerchant">
+          <section class="merchant-profile-overview">
+            <div class="status-overview">
+              <p class="card-label">营业状态</p>
+              <strong>{{ merchantStatusLabel }}</strong>
+              <small>{{ merchantStatusNote || '暂无营业提示' }}</small>
             </div>
-            <span class="action-arrow">›</span>
-          </button>
-        </div>
+            <ul class="status-metrics">
+              <li>
+                <p class="card-label">轮播图</p>
+                <strong>{{ merchantCarousel.length }}</strong>
+                <small>顾客端首页</small>
+              </li>
+              <li>
+                <p class="card-label">今日推荐</p>
+                <strong>{{ recommendationSlots.filter((slot) => merchantRecommendations[slot.key]).length }}</strong>
+                <small>已配置栏目</small>
+              </li>
+              <li>
+                <p class="card-label">上架商品</p>
+                <strong>{{ dailyMenu.length }}</strong>
+                <small>今日菜单</small>
+              </li>
+            </ul>
+          </section>
+          <div class="merchant-profile-actions">
+            <button
+              v-for="item in profileActions"
+              :key="item.key"
+              type="button"
+              @click="handleProfileAction(item.key)"
+            >
+              <div class="action-icon">{{ item.icon }}</div>
+              <div class="action-info">
+                <p>{{ item.label }}</p>
+                <small>{{ item.desc }}</small>
+              </div>
+              <span class="action-arrow">›</span>
+            </button>
+          </div>
+          <div class="current-user detail-card">
+            <p>
+              当前登录：<strong>{{ currentUser?.displayName }}</strong>（{{ currentUser?.username }}） · 角色：{{ roleLabel(currentUser?.role) }}
+            </p>
+            <p v-if="currentUser?.merchantName">所属门店：{{ currentUser.merchantName }}</p>
+            <button class="ghost" type="button" @click="logout">退出登录</button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="profile-actions">
+            <button
+              v-for="item in profileActions"
+              :key="item.key"
+              type="button"
+              @click="handleProfileAction(item.key)"
+            >
+              <div class="action-icon">{{ item.icon }}</div>
+              <div class="action-info">
+                <p>{{ item.label }}</p>
+                <small>{{ item.desc }}</small>
+              </div>
+              <span class="action-arrow">›</span>
+            </button>
+          </div>
 
-        <div v-if="currentUser" class="current-user detail-card">
-          <p>
-            当前登录：<strong>{{ currentUser.displayName }}</strong>（{{ currentUser.username }}） · 角色：{{ roleLabel(currentUser.role) }}
-          </p>
-          <p v-if="currentUser.merchantName">所属门店：{{ currentUser.merchantName }}</p>
-          <button class="ghost" type="button" @click="logout">退出登录</button>
-        </div>
-        <div v-else class="auth-card profile-auth compact">
-          <p class="cta-hint">登录后可同步订单、领取优惠券</p>
-          <button class="primary gate-cta" type="button" @click="activeTab = 'profileLogin'">立即登录</button>
-        </div>
+          <div v-if="currentUser" class="current-user detail-card">
+            <p>
+              当前登录：<strong>{{ currentUser.displayName }}</strong>（{{ currentUser.username }}） · 角色：{{ roleLabel(currentUser.role) }}
+            </p>
+            <p v-if="currentUser.merchantName">所属门店：{{ currentUser.merchantName }}</p>
+            <button class="ghost" type="button" @click="logout">退出登录</button>
+          </div>
+          <div v-else class="auth-card profile-auth compact">
+            <p class="cta-hint">登录后可同步订单、领取优惠券</p>
+            <button class="primary gate-cta" type="button" @click="activeTab = 'profileLogin'">立即登录</button>
+          </div>
+        </template>
       </section>
 
       <section v-else-if="activeTab === 'profileLogin'" class="panel profile auth-full">
@@ -547,12 +994,8 @@ import OrderForm from './components/OrderForm.vue'
 import HomeShowcase from './components/HomeShowcase.vue'
 import CategoryShowcase from './components/CategoryShowcase.vue'
 import {
-  createDrink,
-  deleteDrink as removeDrink,
-  listDrinks,
   login,
   register,
-  updateDrink as patchDrink,
   fetchAdminOverview,
   fetchCatalogDrinks,
   fetchMerchants,
@@ -563,6 +1006,7 @@ import {
   fetchUserProfile,
   updateUserProfile,
   uploadAvatar,
+  uploadAsset,
   createAlipayPayment
 } from './services/api'
 
@@ -572,9 +1016,40 @@ const roles = [
   { label: '顾客', value: 'CUSTOMER' }
 ]
 
+const productCategories = [
+  { value: 'CLASSIC', label: '经典咖啡', icon: '☕️', desc: '顺口经典款，日常稳妥选择。' },
+  { value: 'SIGNATURE', label: '灵感特调', icon: '✨', desc: '限时灵感，甜感与香气更有记忆点。' },
+  { value: 'POUR', label: '手冲风味', icon: '🫖', desc: '产区风味旅程，慢慢品出层次。' },
+  { value: 'DESSERT', label: '甜品点心', icon: '🍰', desc: '巴斯克与烘焙小点，搭配咖啡更完整。' }
+]
+
+const adminPanels = [
+  { key: 'dashboard', label: '驾驶舱', desc: '实时概览', icon: '总览' },
+  { key: 'network', label: '门店网络', desc: '调度与预警', icon: '门店' },
+  { key: 'marketing', label: '营销策略', desc: '会员触达', icon: '营销' },
+  { key: 'settings', label: '系统配置', desc: '权限与安全', icon: '系统' }
+]
+
 const activeTab = ref('home')
-const adminDrinks = ref([])
-const catalogDrinks = ref([])
+const adminActivePanel = ref(adminPanels[0].key)
+const productLibrary = ref([])
+const productForm = reactive({
+  id: null,
+  category: productCategories[0].value,
+  name: '',
+  price: '',
+  description: '',
+  imageUrl: '',
+  tag: ''
+})
+const productErrors = reactive({})
+const normalizeCategory = (value) => {
+  const upper = String(value || '').toUpperCase()
+  if (productCategories.some((cat) => cat.value === upper)) {
+    return upper
+  }
+  return productCategories[0].value
+}
 const merchants = ref([])
 const merchantBoard = reactive({
   merchantName: '',
@@ -590,6 +1065,8 @@ const sharedCartCount = computed(() => sharedCartItems.value.reduce((sum, item) 
 const sharedCartTotal = computed(() =>
   sharedCartItems.value.reduce((sum, item) => sum + Number(item.price || 0) * (item.quantity || 0), 0)
 )
+const numberFormatter = new Intl.NumberFormat('zh-CN')
+const formatCount = (value) => numberFormatter.format(Math.max(0, Number(value) || 0))
 const sharedCartSummary = computed(() =>
   sharedCartCount.value ? `共 ${sharedCartCount.value} 件 · ¥ ${sharedCartTotal.value.toFixed(2)}` : '购物车为空'
 )
@@ -643,17 +1120,7 @@ const clearSharedCart = () => {
 }
 const adminOverview = ref(null)
 const orderOverview = ref(null)
-
-const drinkForm = reactive({
-  id: null,
-  name: '',
-  price: '',
-  description: '',
-  imageUrl: '',
-  flavorProfile: '',
-  available: true
-})
-const drinkErrors = reactive({})
+const adminCommandFeedback = ref('')
 
 const authMode = ref('login')
 const loginRole = ref('CUSTOMER')
@@ -690,6 +1157,7 @@ const storePicker = reactive({
   selectedId: null,
   returnTab: 'home'
 })
+const hasPromptedStoreSelection = ref(false)
 const pickupOptions = [
   { value: 'DINE_IN', label: '店内享用', desc: '堂食慢慢品味' },
   { value: 'TAKEAWAY', label: '打包带走', desc: '到店自取更灵活' }
@@ -721,6 +1189,235 @@ const merchantSnapshot = computed(() =>
       }
     : null
 )
+
+const merchantStatusOptions = [
+  { value: 'OPEN', label: '正常营业' },
+  { value: 'BUSY', label: '忙碌 · 控制接单' },
+  { value: 'PAUSED', label: '暂停接单' }
+]
+const merchantStatus = ref('OPEN')
+const merchantStatusNote = ref('')
+
+const menuSlots = [
+  { value: 'ALL_DAY', label: '全时段' },
+  { value: 'MORNING', label: '上午档' },
+  { value: 'NOON', label: '午后档' },
+  { value: 'EVENING', label: '晚高峰' }
+]
+
+const dailyMenu = ref([])
+const menuAlert = ref('')
+const merchantHomeNotice = ref('')
+const merchantRecommendationsHydrated = ref(false)
+const recommendationSlots = [
+  { key: 'dessert', label: '甜品推荐' },
+  { key: 'classic', label: '经典咖啡' },
+  { key: 'pour', label: '手冲' },
+  { key: 'special', label: '特调' }
+]
+const merchantRecommendations = reactive({
+  dessert: '',
+  classic: '',
+  pour: '',
+  special: ''
+})
+const merchantCarouselSeed = () => [
+  { id: 'banner-hero', imageUrl: brandLogo, caption: '门店晨间主推' },
+  { id: 'banner-signature', imageUrl: profileBg, caption: '招牌特调' }
+]
+const merchantCarousel = ref(merchantCarouselSeed())
+const newCarousel = reactive({ imageUrl: '', caption: '' })
+const newMenuDraft = reactive({
+  drinkId: '',
+  target: 20,
+  slot: 'ALL_DAY'
+})
+let menuAlertTimer = null
+let merchantHomeNoticeTimer = null
+const productImageUploading = ref(false)
+const carouselImageUploading = ref(false)
+
+const adminKpis = computed(() => {
+  const overview = adminOverview.value || {}
+  return [
+    { label: '饮品数', value: formatCount(overview.drinkCount), desc: '在售 SKU', highlight: false },
+    { label: '门店数', value: formatCount(overview.merchantCount), desc: '已上线门店', highlight: false },
+    { label: '累计订单', value: formatCount(overview.orderCount), desc: '总履约量', highlight: false },
+    { label: '注册用户', value: formatCount(overview.userCount), desc: '会员池规模', highlight: false },
+    {
+      label: '人气饮品',
+      value: overview.topDrink || orderOverview.value?.topDrink || '探索 8AM 风味',
+      desc: '24 小时榜单',
+      highlight: true
+    }
+  ]
+})
+
+const adminPipeline = computed(() => {
+  const summary = orderOverview.value || {}
+  const base = [
+    { key: 'RECEIVED', label: '待接单', raw: Number(summary.received) || 0, desc: '待分配到门店' },
+    { key: 'PREPARING', label: '制作中', raw: Number(summary.preparing) || 0, desc: '吧台正在制作' },
+    { key: 'READY', label: '待取餐', raw: Number(summary.ready) || 0, desc: '等待顾客到店' },
+    { key: 'COMPLETED', label: '已完成', raw: Number(summary.completed) || 0, desc: '已核销订单' }
+  ]
+  const total = base.reduce((sum, stage) => sum + stage.raw, 0) || 1
+  return base.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    value: formatCount(stage.raw),
+    desc: stage.desc,
+    ratio: Math.round((stage.raw / total) * 100)
+  }))
+})
+
+const adminFocus = computed(() => {
+  const pipeline = adminPipeline.value
+  if (!pipeline.length) {
+    return {
+      title: '等待数据同步',
+      desc: '稍后点击“刷新概览”即可查看今日焦点。'
+    }
+  }
+  const busiest = pipeline.reduce((prev, curr) => ((curr.ratio || 0) > (prev.ratio || 0) ? curr : prev), pipeline[0])
+  const focusDrink = adminOverview.value?.topDrink || orderOverview.value?.topDrink || '灵感新饮'
+  return {
+    title: `${focusDrink}`,
+    desc: `当前「${busiest.label}」阶段占比 ${busiest.ratio}% ，建议结合 ${focusDrink} 的物料规划。`
+  }
+})
+
+const adminAutomationHint = computed(() => {
+  const pipeline = adminPipeline.value
+  if (!pipeline.length) {
+    return '自动建议：完成基础数据同步后即可获得排队提示。'
+  }
+  const busiest = pipeline.reduce((prev, curr) => ((curr.ratio || 0) > (prev.ratio || 0) ? curr : prev), pipeline[0])
+  return `自动建议：优先疏导「${busiest.label}」阶段，保持履约顺畅。`
+})
+
+const adminStoreCards = computed(() => {
+  if (!merchants.value.length) return []
+  const presets = [
+    { key: 'normal', label: '营业中' },
+    { key: 'peak', label: '高峰预警' },
+    { key: 'rest', label: '维护中' }
+  ]
+  return merchants.value.slice(0, 4).map((store, index) => {
+    const preset = presets[index % presets.length]
+    return {
+      id: store.id,
+      name: store.name,
+      location: store.location,
+      status: preset.label,
+      statusKey: preset.key,
+      queue: `${5 + index * 3} 人`,
+      capacity: `${Math.max(40, 90 - index * 10)}%`,
+      manager: store.manager || store.contact || store.owner || '值班伙伴'
+    }
+  })
+})
+
+const adminCampaigns = computed(() => {
+  const memberCount = formatCount(adminOverview.value?.userCount ?? 0)
+  return [
+    {
+      type: '会员增长',
+      title: '好友裂变礼包',
+      desc: `触达 ${memberCount} 位会员，邀请好友解锁共享券包。`,
+      action: '生成海报'
+    },
+    {
+      type: '留存唤醒',
+      title: '7 日未下单自动提醒',
+      desc: '联合取餐提醒与优惠券，唤醒静默用户。',
+      action: '创建任务'
+    },
+    {
+      type: '权益运营',
+      title: '积分 iLab 企划',
+      desc: '上线新品试饮、积分兑换等会员权益。',
+      action: '配置权益'
+    }
+  ]
+})
+
+const adminSettings = computed(() => [
+  { label: '角色权限模板', desc: '管理员 / 店员 / 顾客权限边界与审批流程', action: '配置模板' },
+  { label: '审计日志', desc: '追踪最近 7 日关键操作与配置变更', action: '查看日志' },
+  { label: '小程序消息模板', desc: '订单提醒、营销推送及客服通知', action: '管理模板' }
+])
+
+const merchantStatusLabel = computed(
+  () => merchantStatusOptions.find((item) => item.value === merchantStatus.value)?.label || '正常营业'
+)
+
+const merchantAlerts = computed(() => {
+  if (merchantStatus.value === 'PAUSED') return '暂停接单中'
+  if (merchantStatus.value === 'BUSY') return '忙碌，适当控单'
+  const pending = Number(merchantBoard.received || 0) + Number(merchantBoard.preparing || 0)
+  return pending > 6 ? '待接单较多，关注产能' : '运行正常'
+})
+
+const productLibraryByCategory = computed(() => {
+  const groups = {}
+  productCategories.forEach((cat) => {
+    groups[cat.value] = []
+  })
+  productLibrary.value.forEach((item, index) => {
+    const category = normalizeCategory(item.category || item.type || productCategories[index % productCategories.length].value)
+    const normalized = {
+      ...item,
+      category
+    }
+    const bucket = groups[category] || (groups[category] = [])
+    bucket.push(normalized)
+  })
+  Object.values(groups).forEach((list) =>
+    list.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  )
+  return groups
+})
+
+const dailyMenuCandidates = computed(() =>
+  productLibrary.value.filter(
+    (drink) => !dailyMenu.value.some((item) => String(item.drinkId) === String(drink.id))
+  )
+)
+
+const canAddMenuItem = computed(() => Boolean(newMenuDraft.drinkId) && Number(newMenuDraft.target) > 0)
+
+const menuStats = computed(() => {
+  const target = dailyMenu.value.reduce((sum, item) => sum + Number(item.target || 0), 0)
+  const sold = dailyMenu.value.reduce((sum, item) => sum + Number(item.sold || 0), 0)
+  return {
+    target,
+    sold,
+    remaining: Math.max(target - sold, 0)
+  }
+})
+
+const merchantOrderStages = computed(() => {
+  const mapping = [
+    { key: 'received', label: '待接单', value: merchantBoard.received, desc: '等待确认' },
+    { key: 'preparing', label: '制作中', value: merchantBoard.preparing, desc: '吧台制作' },
+    { key: 'ready', label: '待取餐', value: merchantBoard.ready, desc: '提醒顾客到店' },
+    { key: 'completed', label: '已完成', value: merchantBoard.completed, desc: '今日出杯' }
+  ]
+  return mapping.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    value: formatCount(stage.value || 0),
+    desc: stage.desc
+  }))
+})
+
+const recommendationOptions = computed(() => {
+  if (dailyMenu.value.length) {
+    return dailyMenu.value
+  }
+  return productLibrary.value
+})
 
 const heroGreeting = computed(() =>
   currentUser.value ? `您好，${currentUser.value.displayName}` : '欢迎来到 8AM 灵感室'
@@ -839,18 +1536,38 @@ const checkoutDisabled = computed(
 )
 
 const profileHighlights = computed(() => {
+  if (isMerchant.value) {
+    const pending = Number(merchantBoard.received || 0) + Number(merchantBoard.preparing || 0)
+    return [
+      {
+        label: '今日进行中',
+        value: formatCount(pending),
+        desc: '待接单 + 制作中'
+      },
+      {
+        label: '已完成',
+        value: formatCount(merchantBoard.completed || 0),
+        desc: '今日出杯'
+      },
+      {
+        label: '上架品类',
+        value: dailyMenu.value.length + ' 款',
+        desc: '今日菜单'
+      }
+    ]
+  }
   const wallet = Number(currentUser.value?.wallet ?? 0)
   const coupons = currentUser.value?.couponCount ?? 3
   const points = currentUser.value?.points ?? 280
   return [
     {
       label: '余额',
-      value: `¥ ${wallet.toFixed(2)}`,
+      value: '¥ ' + wallet.toFixed(2),
       desc: '储值卡金额'
     },
     {
       label: '优惠券',
-      value: `${coupons} 张`,
+      value: coupons + ' 张',
       desc: '门店/线上通用'
     },
     {
@@ -861,12 +1578,19 @@ const profileHighlights = computed(() => {
   ]
 })
 
-const profileActions = [
+const customerProfileActions = [
   { key: 'orders', icon: '🧾', label: '订单中心', desc: '查看制作进度与历史' },
   { key: 'info', icon: '👤', label: '个人资料', desc: '昵称、手机号与生日' },
   { key: 'language', icon: '🌐', label: '语言设置', desc: '切换中文或英文界面' },
-  { key: 'about', icon: '✨', label: '关于我们', desc: '品牌故事与灵感' }
+  { key: 'about', icon: '✦', label: '关于我们', desc: '品牌故事与灵感' }
 ]
+const merchantProfileActions = [
+  { key: 'workbench', icon: '🧰', label: '店铺工作台', desc: '管理今日商品与订单' },
+  { key: 'carousel', icon: '🖼️', label: '轮播与推荐', desc: '配置顾客端首页内容' },
+  { key: 'status', icon: '📣', label: '营业状态', desc: '更新营业提示与公告' },
+  { key: 'logout', icon: '↩️', label: '安全退出', desc: '切换其他账号' }
+]
+const profileActions = computed(() => (isMerchant.value ? merchantProfileActions : customerProfileActions))
 
 const languageOptions = [
   { value: 'zh-CN', label: '简体中文', desc: '推荐 · 贴合微信小程序体验' },
@@ -877,6 +1601,10 @@ const currentLanguage = ref('zh-CN')
 const languageFeedback = ref('')
 
 const handleProfileAction = (key) => {
+  if (isMerchant.value) {
+    handleMerchantProfileAction(key)
+    return
+  }
   if (key === 'orders') {
     activeTab.value = 'order'
     return
@@ -899,6 +1627,291 @@ const handleProfileAction = (key) => {
       break
     case 'about':
       authFeedback.value = '8AM 实验室 · 咖啡巴斯克'
+      break
+    default:
+      break
+  }
+}
+
+const handleAdminShortcut = (topic) => {
+  const label = topic || '巡检任务'
+  adminCommandFeedback.value = `已触发「${label}」巡检任务，稍后在驾驶舱查看执行结果。`
+}
+
+const slotLabel = (slot) => menuSlots.find((item) => item.value === slot)?.label || '全时段'
+const menuProgress = (item) => {
+  if (!item?.target) return 0
+  return Math.min(Math.round((Number(item.sold || 0) / Number(item.target)) * 100), 100)
+}
+
+const resetMenuDraft = () => {
+  newMenuDraft.drinkId = ''
+  newMenuDraft.target = 20
+  newMenuDraft.slot = 'ALL_DAY'
+}
+
+const resetProductForm = () => {
+  productForm.id = null
+  productForm.category = productCategories[0].value
+  productForm.name = ''
+  productForm.price = ''
+  productForm.description = ''
+  productForm.imageUrl = ''
+  productForm.tag = ''
+  Object.keys(productErrors).forEach((key) => delete productErrors[key])
+}
+
+const resetMerchantHomeState = () => {
+  merchantStatus.value = 'OPEN'
+  merchantStatusNote.value = ''
+  dailyMenu.value = []
+  menuAlert.value = ''
+  if (menuAlertTimer) {
+    clearTimeout(menuAlertTimer)
+    menuAlertTimer = null
+  }
+  resetMenuDraft()
+  merchantCarousel.value = merchantCarouselSeed()
+  resetCarouselDraft()
+  merchantHomeNotice.value = ''
+  if (merchantHomeNoticeTimer) {
+    clearTimeout(merchantHomeNoticeTimer)
+    merchantHomeNoticeTimer = null
+  }
+  Object.keys(merchantRecommendations).forEach((key) => {
+    merchantRecommendations[key] = ''
+  })
+  merchantRecommendationsHydrated.value = false
+  resetProductForm()
+}
+
+const showMenuAlert = (message) => {
+  menuAlert.value = message
+  if (menuAlertTimer) {
+    clearTimeout(menuAlertTimer)
+  }
+  menuAlertTimer = setTimeout(() => {
+    menuAlert.value = ''
+    menuAlertTimer = null
+  }, 2500)
+}
+
+const hydrateDailyMenu = () => {
+  if (!isMerchant.value) return
+  if (dailyMenu.value.length || !productLibrary.value.length) return
+  dailyMenu.value = productLibrary.value.slice(0, 4).map((drink, index) => ({
+    id: `${drink.id}-${Date.now()}-${index}`,
+    drinkId: drink.id,
+    name: drink.name,
+    slot: menuSlots[index % menuSlots.length].value,
+    target: 20 + index * 5,
+    sold: 0,
+    status: 'ACTIVE'
+  }))
+}
+
+const addMenuItem = () => {
+  if (!canAddMenuItem.value) return
+  const drink = productLibrary.value.find((item) => String(item.id) === String(newMenuDraft.drinkId))
+  if (!drink) return
+  dailyMenu.value.push({
+    id: `${drink.id}-${Date.now()}`,
+    drinkId: drink.id,
+    name: drink.name,
+    slot: newMenuDraft.slot,
+    target: Math.max(Number(newMenuDraft.target), 1),
+    sold: 0,
+    status: 'ACTIVE'
+  })
+  showMenuAlert(`已上架 ${drink.name}`)
+  resetMenuDraft()
+}
+
+const adjustMenuTarget = (item, delta) => {
+  const next = Math.max(Number(item.target || 0) + delta, Number(item.sold || 0), 0)
+  item.target = next
+}
+
+const recordMenuSale = (item, qty = 1) => {
+  if (!qty) return
+  const next = Math.min(Number(item.target || 0), Number(item.sold || 0) + qty)
+  item.sold = next
+  showMenuAlert(`已记录 ${item.name} 售出 ${qty} 杯`)
+}
+
+const toggleMenuAvailability = (item) => {
+  item.status = item.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
+}
+
+const resetCarouselDraft = () => {
+  newCarousel.imageUrl = ''
+  newCarousel.caption = ''
+}
+
+const setMerchantHomeNotice = (message) => {
+  merchantHomeNotice.value = message
+  if (merchantHomeNoticeTimer) {
+    clearTimeout(merchantHomeNoticeTimer)
+  }
+  merchantHomeNoticeTimer = setTimeout(() => {
+    merchantHomeNotice.value = ''
+    merchantHomeNoticeTimer = null
+  }, 2500)
+}
+
+const uploadMediaFile = async (file) => {
+  const response = await uploadAsset(file)
+  return response?.url || response?.data?.url || response?.path || ''
+}
+
+const handleProductImageUpload = async (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  productImageUploading.value = true
+  try {
+    const imageUrl = await uploadMediaFile(file)
+    if (!imageUrl) throw new Error('未返回图片地址')
+    productForm.imageUrl = imageUrl
+    setMerchantHomeNotice('图片上传成功')
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || '图片上传失败，请稍后再试'
+    setMerchantHomeNotice(message)
+  } finally {
+    productImageUploading.value = false
+    if (event?.target) {
+      event.target.value = ''
+    }
+  }
+}
+
+const handleCarouselImageUpload = async (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  carouselImageUploading.value = true
+  try {
+    const imageUrl = await uploadMediaFile(file)
+    if (!imageUrl) throw new Error('未返回图片地址')
+    newCarousel.imageUrl = imageUrl
+    setMerchantHomeNotice('轮播图上传成功')
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || '轮播图上传失败，请稍后再试'
+    setMerchantHomeNotice(message)
+  } finally {
+    carouselImageUploading.value = false
+    if (event?.target) {
+      event.target.value = ''
+    }
+  }
+}
+
+const validateProductForm = () => {
+  const errors = {}
+  if (!productForm.name.trim()) {
+    errors.name = '请填写商品名称'
+  }
+  if (!productForm.price || Number(productForm.price) <= 0) {
+    errors.price = '价格需大于 0'
+  }
+  return errors
+}
+
+const saveProduct = () => {
+  const errors = validateProductForm()
+  Object.keys(productErrors).forEach((key) => delete productErrors[key])
+  Object.assign(productErrors, errors)
+  if (Object.keys(errors).length) return
+
+  const payload = {
+    id: productForm.id || `sku-${Date.now()}`,
+    category: normalizeCategory(productForm.category),
+    name: productForm.name.trim(),
+    price: Number(productForm.price),
+    description: productForm.description.trim(),
+    imageUrl: productForm.imageUrl.trim(),
+    tag: productForm.tag.trim()
+  }
+
+  if (productForm.id) {
+    productLibrary.value = productLibrary.value.map((item) =>
+      item.id === productForm.id ? { ...item, ...payload } : item
+    )
+    setMerchantHomeNotice(`已更新「${payload.name}」`)
+  } else {
+    productLibrary.value = [{ ...payload }, ...productLibrary.value]
+    setMerchantHomeNotice(`已新增「${payload.name}」`)
+  }
+  resetProductForm()
+}
+
+const editProduct = (product) => {
+  if (!product) return
+  productForm.id = product.id
+  productForm.category = normalizeCategory(product.category)
+  productForm.name = product.name || ''
+  productForm.price = product.price ?? ''
+  productForm.description = product.description || ''
+  productForm.imageUrl = product.imageUrl || ''
+  productForm.tag = product.tag || ''
+  Object.keys(productErrors).forEach((key) => delete productErrors[key])
+}
+
+const deleteProduct = (id) => {
+  if (!id) return
+  if (typeof window !== 'undefined' && !window.confirm('确认删除该商品吗？')) {
+    return
+  }
+  productLibrary.value = productLibrary.value.filter((item) => item.id !== id)
+  if (productForm.id === id) {
+    resetProductForm()
+  }
+  setMerchantHomeNotice('商品已删除')
+}
+
+const addCarouselItem = () => {
+  if (!newCarousel.imageUrl) return
+  merchantCarousel.value.push({
+    id: `banner-${Date.now()}`,
+    imageUrl: newCarousel.imageUrl,
+    caption: newCarousel.caption || '门店推荐'
+  })
+  setMerchantHomeNotice('已新增轮播图片')
+  resetCarouselDraft()
+}
+
+const removeCarouselItem = (id) => {
+  merchantCarousel.value = merchantCarousel.value.filter((item) => item.id !== id)
+  setMerchantHomeNotice('已删除轮播图片')
+}
+
+const syncRecommendationsFromMenu = () => {
+  const source = recommendationOptions.value
+  recommendationSlots.forEach((slot, index) => {
+    merchantRecommendations[slot.key] = source[index]?.name || ''
+  })
+  merchantRecommendationsHydrated.value = true
+  setMerchantHomeNotice('今日推荐已同步')
+}
+
+const announceStatus = () => {
+  const note = merchantStatusNote.value.trim()
+  const message = `已发送「${merchantStatusLabel.value}」营业通知${note ? `：${note}` : ''}`
+  setMerchantHomeNotice(message)
+}
+
+const handleMerchantProfileAction = (key) => {
+  switch (key) {
+    case 'workbench':
+      activeTab.value = 'order'
+      break
+    case 'carousel':
+      activeTab.value = 'home'
+      setMerchantHomeNotice('已定位到轮播配置')
+      break
+    case 'status':
+      announceStatus()
+      break
+    case 'logout':
+      logout()
       break
     default:
       break
@@ -1097,6 +2110,16 @@ const openStorePicker = () => {
   }
 }
 
+const ensureStoreSelection = () => {
+  if (showWorkbench.value) return
+  if (hasPromptedStoreSelection.value) return
+  if (!merchants.value.length) return
+  if (!selectedMerchantId.value) {
+    hasPromptedStoreSelection.value = true
+    openStorePicker()
+  }
+}
+
 const closeStorePicker = () => {
   activeTab.value = storePicker.returnTab || 'home'
 }
@@ -1104,7 +2127,7 @@ const closeStorePicker = () => {
 const confirmStoreSelection = () => {
   if (!storePicker.selectedId) return
   selectedMerchantId.value = storePicker.selectedId
-  const nextTab = showWorkbench.value ? 'order' : 'checkout'
+  const nextTab = showWorkbench.value ? 'order' : storePicker.returnTab || 'home'
   activeTab.value = nextTab
 }
 
@@ -1221,78 +2244,6 @@ const submitProfile = async () => {
   }
 }
 
-const resetDrinkForm = () => {
-  drinkForm.id = null
-  drinkForm.name = ''
-  drinkForm.price = ''
-  drinkForm.description = ''
-  drinkForm.imageUrl = ''
-  drinkForm.flavorProfile = ''
-  drinkForm.available = true
-  Object.keys(drinkErrors).forEach((key) => delete drinkErrors[key])
-}
-
-const editDrink = (drink) => {
-  drinkForm.id = drink.id
-  drinkForm.name = drink.name
-  drinkForm.price = drink.price ? Number(drink.price) : ''
-  drinkForm.description = drink.description
-  drinkForm.imageUrl = drink.imageUrl
-  drinkForm.flavorProfile = drink.flavorProfile
-  drinkForm.available = drink.available
-  activeTab.value = 'order'
-}
-
-const validateDrink = () => {
-  const errors = {}
-  if (!drinkForm.name) errors.name = '请填写饮品名称'
-  if (!drinkForm.price || Number(drinkForm.price) <= 0) errors.price = '价格需大于0'
-  return errors
-}
-
-const submitDrink = async () => {
-  const errors = validateDrink()
-  Object.keys(drinkErrors).forEach((key) => delete drinkErrors[key])
-  Object.assign(drinkErrors, errors)
-  if (Object.keys(errors).length) return
-
-  const payload = {
-    name: drinkForm.name,
-    price: Number(drinkForm.price),
-    description: drinkForm.description,
-    imageUrl: drinkForm.imageUrl,
-    flavorProfile: drinkForm.flavorProfile,
-    available: drinkForm.available
-  }
-
-  try {
-    if (drinkForm.id) {
-      await patchDrink(drinkForm.id, payload)
-    } else {
-      await createDrink(payload)
-    }
-    await loadAdminResources()
-    resetDrinkForm()
-  } catch (error) {
-    if (error.response?.data?.errors) {
-      Object.assign(drinkErrors, error.response.data.errors)
-    }
-  }
-}
-
-const deleteDrink = async (id) => {
-  if (!confirm('确定要删除这款饮品吗？')) return
-  try {
-    await removeDrink(id)
-    await loadAdminResources()
-    if (drinkForm.id === id) {
-      resetDrinkForm()
-    }
-  } catch (error) {
-    alert(error.response?.data?.message || '删除失败，请稍后再试')
-  }
-}
-
 const validateAuth = () => {
   const errors = {}
   if (!authForm.username) errors.username = '请填写用户名'
@@ -1371,12 +2322,20 @@ const logout = () => {
   loginRole.value = 'CUSTOMER'
   registerRole.value = 'CUSTOMER'
   authFeedback.value = ''
+  adminActivePanel.value = adminPanels[0].key
+  adminCommandFeedback.value = ''
   if (activeTab.value === 'profileLogin') {
     activeTab.value = 'profile'
   }
-  resetDrinkForm()
   resetProfileForm()
-  adminDrinks.value = []
+  selectedMerchantId.value = null
+  storePicker.selectedId = null
+  storePicker.returnTab = 'home'
+  hasPromptedStoreSelection.value = false
+  resetMerchantHomeState()
+  if (activeTab.value === 'home') {
+    ensureStoreSelection()
+  }
   adminOverview.value = null
   merchantBoard.merchantName = ''
   merchantBoard.received = 0
@@ -1388,7 +2347,6 @@ const logout = () => {
 
 const loadAdminResources = async () => {
   if (!isAdmin.value) return
-  adminDrinks.value = await listDrinks()
   adminOverview.value = await fetchAdminOverview()
 }
 
@@ -1412,7 +2370,11 @@ const loadMerchantBoard = async () => {
 }
 
 const loadSharedResources = async () => {
-  catalogDrinks.value = await fetchCatalogDrinks()
+  const drinks = await fetchCatalogDrinks()
+  productLibrary.value = drinks.map((drink, index) => ({
+    ...drink,
+    category: normalizeCategory(drink.category || drink.type || productCategories[index % productCategories.length].value)
+  }))
   merchants.value = await fetchMerchants()
   orderOverview.value = await fetchOrderOverview()
   if (registerRole.value === 'MERCHANT' && merchants.value.length && !authForm.merchantId) {
@@ -1479,6 +2441,41 @@ const formatTime = (isoString) => {
 }
 
 watch(
+  () => productLibrary.value.length,
+  () => {
+    if (isMerchant.value) {
+      hydrateDailyMenu()
+      if (!merchantRecommendationsHydrated.value && recommendationOptions.value.length) {
+        syncRecommendationsFromMenu()
+      }
+    }
+  }
+)
+
+watch(
+  () => isMerchant.value,
+  (flag) => {
+    if (flag) {
+      hydrateDailyMenu()
+      if (recommendationOptions.value.length) {
+        syncRecommendationsFromMenu()
+      }
+    } else {
+      resetMerchantHomeState()
+    }
+  }
+)
+
+watch(
+  () => dailyMenu.value.length,
+  () => {
+    if (isMerchant.value && !merchantRecommendationsHydrated.value && recommendationOptions.value.length) {
+      syncRecommendationsFromMenu()
+    }
+  }
+)
+
+watch(
   () => currentUser.value,
   (user) => {
     populateProfileForm(user)
@@ -1530,10 +2527,20 @@ watch(
 )
 
 watch(
+  () => isAdmin.value,
+  (flag) => {
+    adminActivePanel.value = adminPanels[0].key
+    if (!flag) {
+      adminCommandFeedback.value = ''
+    }
+  }
+)
+
+watch(
   () => merchants.value,
-  (list) => {
-    if (!selectedMerchantId.value && list.length) {
-      selectedMerchantId.value = list[0].id
+  () => {
+    if (!selectedMerchantId.value) {
+      ensureStoreSelection()
     }
   },
   { immediate: true }
@@ -1595,10 +2602,642 @@ onMounted(async () => {
   box-shadow: none;
 }
 
+.store-gate {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.store-gate h2 {
+  margin: 4px 0;
+}
+
+.store-gate small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.store-gate.empty {
+  border-style: dashed;
+}
+
+.store-gate-empty {
+  border-radius: 18px;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  padding: 24px;
+  text-align: center;
+  color: rgba(148, 163, 184, 0.9);
+  display: grid;
+  gap: 12px;
+}
+
+.merchant-home {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.merchant-carousel-card,
+.merchant-recommend-card,
+.merchant-home-actions {
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.7);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.carousel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.carousel-card {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  display: grid;
+  gap: 8px;
+}
+
+.carousel-thumb {
+  border-radius: 12px;
+  height: 110px;
+  background-size: cover;
+  background-position: center;
+}
+
+.recommend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.merchant-home-actions .action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.product-library-panel {
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.75);
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+}
+
+.product-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.product-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.product-form label span {
+  font-weight: 500;
+}
+
+.product-form .full-width {
+  grid-column: 1 / -1;
+}
+
+.product-form textarea {
+  grid-column: 1 / -1;
+  resize: vertical;
+}
+
+.image-preview {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-preview img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.library-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.library-group {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.6);
+  display: grid;
+  gap: 10px;
+}
+
+.library-group header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.library-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.library-group li {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.library-group li strong {
+  display: block;
+}
+
+.library-group li small {
+  display: block;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.library-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.library-empty {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.75);
+  font-size: 0.9rem;
+}
+
+.merchant-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.merchant-status-card,
+.merchant-menu-card,
+.merchant-orders {
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.7);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.status-select {
+  display: grid;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.status-note textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+}
+
+.status-metrics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.status-metrics li {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.menu-add {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.menu-card {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.6);
+  display: grid;
+  gap: 10px;
+}
+
+.menu-slot {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.menu-progress .bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(51, 65, 85, 0.8);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.menu-progress .bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(120deg, #22d3ee, #38bdf8);
+}
+
+.menu-meta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.menu-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.menu-status {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.menu-status.paused {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+}
+
+.menu-qty {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.merchant-pipeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.merchant-pipeline article {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.merchant-profile-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.merchant-profile-overview {
+  display: grid;
+  gap: 12px;
+}
+
+.status-overview {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
 .panel.explore-panel {
   padding: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.admin-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-hero {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-meta {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.admin-meta strong {
+  font-size: 1.2rem;
+}
+
+.admin-meta button {
+  justify-self: end;
+}
+
+.eyebrow {
+  margin: 0;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.admin-subtabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.admin-subtabs button {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.4);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e2e8f0;
+}
+
+.admin-subtabs button strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.admin-subtabs button small {
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.admin-subtabs button.active {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.dashboard-secondary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.timeline-card,
+.insight-card {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.6);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.pipeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.pipeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.pipeline-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+
+.pipeline-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #38bdf8, #22d3ee);
+}
+
+.insight-title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.insight-desc {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.insight-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-header div > h2 {
+  margin: 0;
+}
+
+.section-desc {
+  margin: 4px 0 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.pipeline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.order-stage-card {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.55);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.order-hints {
+  border-radius: 16px;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  padding: 12px 16px;
+  color: rgba(148, 163, 184, 0.85);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.store-card {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.store-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.store-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
+}
+
+.status-chip {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.status-chip.normal {
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #4ade80;
+}
+
+.status-chip.peak {
+  border-color: rgba(249, 115, 22, 0.5);
+  color: #fb923c;
+}
+
+.status-chip.rest {
+  border-color: rgba(148, 163, 184, 0.4);
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.campaign-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.campaign-card {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.insight-matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.insight-card.compact button {
+  justify-self: flex-start;
+}
+
+.settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.settings-list li {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.5);
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-feedback {
+  margin: 0;
+  text-align: center;
+  color: rgba(125, 211, 252, 0.9);
 }
 
 .panel-header {
@@ -1652,90 +3291,6 @@ onMounted(async () => {
   background: linear-gradient(145deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.25));
 }
 
-.drink-cards {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 18px;
-}
-
-.drink-card {
-  border-radius: 18px;
-  overflow: hidden;
-  background: rgba(30, 41, 59, 0.8);
-}
-
-.card-hero {
-  position: relative;
-  height: 140px;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: rgba(59, 130, 246, 0.4);
-}
-
-.badge {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  background: rgba(14, 165, 233, 0.8);
-  color: #0f172a;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.availability {
-  position: absolute;
-  bottom: 14px;
-  right: 14px;
-  background: rgba(96, 165, 250, 0.85);
-  border: none;
-  padding: 6px 14px;
-  border-radius: 999px;
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.card-body {
-  padding: 18px;
-  display: grid;
-  gap: 10px;
-}
-
-.card-body h2 {
-  margin: 0;
-  font-size: 1.3rem;
-}
-
-.card-body p {
-  margin: 0;
-  color: rgba(226, 232, 240, 0.8);
-  line-height: 1.6;
-}
-
-.price {
-  font-size: 1.1rem;
-}
-
-.form {
-  display: grid;
-  gap: 16px;
-}
-
-.form-row {
-  display: grid;
-  gap: 6px;
-}
-
-.inline {
-  align-items: center;
-  grid-template-columns: auto auto auto;
-  gap: 12px;
-}
-
 label {
   font-size: 0.9rem;
   color: rgba(226, 232, 240, 0.85);
@@ -1762,54 +3317,6 @@ textarea:focus {
   outline: none;
   border-color: rgba(96, 165, 250, 0.75);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
-}
-
-.switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 44px;
-  height: 24px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background-color: rgba(148, 163, 184, 0.4);
-  border-radius: 999px;
-  transition: 0.3s;
-}
-
-.slider:before {
-  position: absolute;
-  content: '';
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: #0f172a;
-  border-radius: 50%;
-  transition: 0.3s;
-}
-
-input:checked + .slider {
-  background-color: rgba(14, 165, 233, 0.6);
-}
-
-input:checked + .slider:before {
-  transform: translateX(20px);
-}
-
-.actions {
-  display: flex;
-  gap: 12px;
 }
 
 button {
@@ -1847,39 +3354,6 @@ button.danger {
 .error {
   color: #f87171;
   font-size: 0.85rem;
-}
-
-.drink-list {
-  list-style: none;
-  padding: 0;
-  margin: 24px 0 0;
-  display: grid;
-  gap: 16px;
-}
-
-.drink-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 16px;
-  background: rgba(30, 41, 59, 0.65);
-}
-
-.meta {
-  margin: 4px 0;
-  color: rgba(148, 163, 184, 0.9);
-}
-
-.desc {
-  margin: 0;
-  color: rgba(226, 232, 240, 0.8);
-}
-
-.item-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
 }
 
 .order-board {

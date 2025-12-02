@@ -49,3 +49,9 @@ export const uploadAvatar = (file) => {
   formData.append('file', file)
   return client.post('/uploads/avatar', formData).then((res) => res.data)
 }
+
+export const uploadAsset = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return client.post('/uploads/assets', formData).then((res) => res.data)
+}

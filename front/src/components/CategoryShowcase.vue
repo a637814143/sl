@@ -167,29 +167,29 @@ const navItems = [
   {
     label: '经典咖啡',
     value: 'CLASSIC',
-    icon: '☕',
-    description: '顺口经典款，日常最稳妥的选择。',
+    icon: '☕️',
+    description: '顺口经典款，日常稳妥选择。',
     placeholder: '经典区暂未上架，稍后看看。'
   },
   {
-    label: '特调',
+    label: '灵感特调',
     value: 'SIGNATURE',
-    icon: '🧪',
+    icon: '✨',
     description: '主理人灵感限定，甜感与香气更有记忆点。',
     placeholder: '特调会随季节更新，敬请期待。'
   },
   {
-    label: '特色手冲',
+    label: '手冲风味',
     value: 'POUR',
-    icon: '🫘',
+    icon: '🫖',
     description: '产区风味的旅程，慢慢品出层次。',
     placeholder: '手冲豆正在新鲜烘焙，马上上线。'
   },
   {
-    label: '甜品',
+    label: '甜品点心',
     value: 'DESSERT',
     icon: '🍰',
-    description: '巴斯克与烘焙小点，配咖啡才完整。',
+    description: '巴斯克与烘焙小点，搭配咖啡才完整。',
     placeholder: '甜品烘焙中，稍后刷新就能看到。'
   }
 ]
