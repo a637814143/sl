@@ -11,5 +11,9 @@ public interface MerchantProductRepository extends JpaRepository<MerchantProduct
 
     List<MerchantProduct> findByMerchantIdAndAvailableTrueOrderByDisplayOrderAscIdAsc(Long merchantId);
 
+    List<MerchantProduct> findByMerchantIdOrderByDisplayOrderAscIdAsc(Long merchantId);
+
     Optional<MerchantProduct> findByIdAndMerchantId(Long id, Long merchantId);
+
+    long countByProductId(Long productId);
 }

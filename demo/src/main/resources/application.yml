@@ -24,6 +24,45 @@ logging:
 server:
   port: 8080
 
+alipay:
+  app-id: 9021000158611988
+  private-key: |-
+    -----BEGIN PRIVATE KEY-----
+    MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCXctFylEO2VZDfPg7EWFrZPjvK72b6
+    tx8mzPtc86+5Hkf9n0bV3syWPCRluJ1rgMqp0AHuqLmQpJ1DnTUPqd4RIjtTaIFTIBLT3YNHCFj+hBG
+    KM2CAgC9CFX6NBBayBbohgxFdP04lJKzUY/dYTPnTc+DbqW/hA6M8Prjhu6VYxVXY6XunfRaRoLnbiU
+    z7rzf6WjFJKaBM9bO5vllty+sRxzLpOd2MiytHkeUEH2WvZCrLF7Mch5tdbNPJz+BYw5xDmU+N/WlWG
+    uphv4P1vNPyU0+B2Xv9iwB6Hqdk9OYbNwj99jgKX9TfnwnkvH9bZWeN24qYYb+zihlVQTe6eI+/AgMB
+    AAECggEAQcp5PmM2PyFQvApDc/xGCxXD99akT8n5WGu3zpt1/N8wuvbUWNhe2+zoit/2UtsyLy7TiA/
+    3/OPmBZdnk5RhiePrDcLaW3gVdcBG5Ta1ImvRCs5i36/P189qmGvsSA3A3AoKIw37LpuOEP4UV2GpLb
+    irOAGVPpTL9sHwou9XVwZEA8XvsRc6JLJrGilF0OOMrlleh2wWT+9ngpDpOdW1tKp5PFg8vudVrJiph
+    wOZaQmRZkqh8D2F69iutS2J8de2qnqh/Hf6tLDMZ9nhktMBmkWKyKUu7/uvRvE0iRGGECA/h6UP4jkV
+    jwT8DY/gGwjxjnuTTZ2TqqPYyTBXCFfSQQKBgQDyjjGvjcu8hFIgGGQbDKP1QvMdHneTHYABIXf+lKL
+    VDUHeP0daXaJ94eaIdHefaRzDEaiOQDN4W0f776UZPMOuetgsZXFae4bmI34zD1tj4GyaH9nLieGKcS
+    nyqfjxRQ/yRFWfiPLkPVxgXIogwXwq7hVNB9V4ovQ23Ob+6bQz0QKBgQCf19ZttkB5XM79NS1ujkvvM
+    0r66QyH1cJHH6dFjHgOpBJlmOdDQiagYKGBW+fdd8wxpfB7UbIw1/dknO4N4aCS7Zd272mpkBNZrbdn
+    MYxA4wZnkKYv+5QH7qi/NmgjE34m0lTxIuloeitmRHz8zAEvm+XN1prnqJbcZndjxdM+jwKBgCHJbuB
+    eZxfecrYnz6H488nRRp4yxUNH47HEoLtkpv34d8lmlSDgVCcm1X8CgjtBYBFIH2uZQ9IrHO7aJexLC5
+    L9Z6lfhBevh039ebHRHNDfzSD2+NaiYTlwpAA6bwPks+DyZd7wK61hYsHFgjQn34z3Vx5Azhqc0FnoE
+    YFGuqRRAoGBAItm7beZLvmpG0xxSEIXD9p5XXceMLN2lYz56iQZscrzBKhehbJ+yrksDS6IPNtFU2wp
+    UGX8he9bKoMw6dxpXmVFmMc9XWVoJbgcbMsuxyb/1+ISoR1Px3Zzie/ZP1D3+xlYboQu8mkPwzHZoTf
+    Ho3EmAXFXLJnEym1FX/I/4U+5AoGBAIRvrRs8gmYNXpKTPIJTyghceGDiHfdI6Sdv7tLte+VeodNTY2
+    tM1XNpIaNY3ylBVNrEfNjq7G1yU/m6l5quj70DRUv0o34I7lxD+Fhhb9q0xU+ZktBV6KtaOK4ekfY3K
+    SmK+mxtI6JuvNVzJ52gnEUpugdhn5W9PymU/YUPoEcS
+    -----END PRIVATE KEY-----
+  public-key: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmM9NYONCNxiodoyXC7rMJ8X4WwDwD6ajgiH
+    A88K+UmOtQhO6YQYJVTZMbuV4vgCQJmArUqSSECFD30qBlwYp1xK3wuILvq9ok0dgB4lNZMmET7oKGF
+    97mZ3X66GV3+aQCAmMcyV7ryJMwn2GrkseW7ji3SFgWpiDUuM6v7jo5AJyBZe1YgIaoT6JiXwTDuNiz
+    VL5IsYDu3cV9CBdgR+yLXBAYo/PL73SWPD0Mnc3g7IlUsoOQoYgj8BaF2RfUURTF/lfn0Xa2vJLfbwt
+    pDP5gKiA3E9cgn5HVN4TDrkXOjouDvsqRGp8VH2aEjZqaWJ3XI65MagY59fgM5Yy05A9CwIDAQAB
+    -----END PUBLIC KEY-----
+  gateway: https://openapi.alipaydev.com/gateway.do
+  notify-url: http://localhost:8080/api/payments/alipay/notify
+  return-url: http://192.168.0.194:5173/
+  sign-type: RSA2
+
 app:
   cors:
     allowed-origins:

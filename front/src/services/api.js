@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+let authToken = ''
+
 const resolveBaseURL = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL
@@ -14,6 +16,18 @@ const client = axios.create({
   baseURL: resolveBaseURL(),
   timeout: 8000
 })
+
+client.interceptors.request.use((config) => {
+  if (authToken) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${authToken}`
+  }
+  return config
+})
+
+export const setAuthToken = (token) => {
+  authToken = token || ''
+}
 
 const adminDrinksPath = '/admin/drinks'
 
@@ -56,3 +70,12 @@ export const uploadAsset = (file) => {
   formData.append('file', file)
   return client.post('/uploads/assets', formData).then((res) => res.data)
 }
+
+export const createMerchantProduct = (payload) =>
+  client.post('/merchant/products', payload).then((res) => res.data)
+
+export const updateMerchantProduct = (id, payload) =>
+  client.put(`/merchant/products/${id}`, payload).then((res) => res.data)
+
+export const deleteMerchantProduct = (id, merchantId) =>
+  client.delete(`/merchant/products/${id}`, { params: { merchantId } })

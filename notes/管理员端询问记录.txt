@@ -1261,3 +1261,29 @@ textarea>
 
   在界面上放一个“调度门店”按钮，是希望你能快速进入这类操作流程（比如弹出一个门店详情面板，提供排队、产能、人手等数据和操
   作入口）。
+
+
+
+主要变更
+
+  - 在后端补齐商家商品 CRUD：新增 MerchantProductController 和 MerchantProductService，将请求参数封装成
+    MerchantProductRepository.java:8-18），DrinkCatalogService 现在复用 mapper 输出（demo/src/main/java/com/eightam/lab/
+    service/DrinkCatalogService.java:3-36）。
+  - 前端商品表单改为真正调用新接口：services/api.js 新增创建/更新/删除商家商品的方法（front/src/services/api.js:20-
+    67）；App.vue 在保存、删除时会携带 merchantId 请求后端并在成功后重新拉取 fetchCatalogDrinks，同时把 tag 写入
+    flavorProfile 以便后续展示（front/src/App.vue:1813-1885, front/src/App.vue:2390-2403）。按钮还会在提交期间禁用，避免
+    重复提交。
+  - “灵感单专场”在商家模式下切换为管理界面：卡片右下角的“加号”被替换成“编辑/删除”操作，同时整块购物车、加购
+    浮层、定制弹窗在 isMerchantMode 为 true 时隐藏，模板会根据角色自动添加 merchant-mode class（front/src/
+    components/CategoryShowcase.vue:8-90, front/src/components/CategoryShowcase.vue:166-210, front/src/components/
+    CategoryShowcase.vue:350-588）。
+
+  验证
+
+  - 未运行自动化测试；建议分别执行 ./mvnw spring-boot:run 与 npm run dev，用商家账号在“灵感单专场”新增/编辑/删除商品，确
+    认刷新或重新登录后数据仍存在。
+
+  后续建议
+
+  1. 若需要支持“下架/隐藏”功能，可在前端打开 available 切换，并在请求里传递对应字段。
+  2. 可以补充对 /api/merchant/products 的鉴权（基于登录 token）以防止越权

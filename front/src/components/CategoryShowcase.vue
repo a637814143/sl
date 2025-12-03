@@ -8,8 +8,9 @@
     <section
       class="category-layout"
       :class="{
-        'no-cart': !cartItems.length,
-        'cart-open': isMobile && cartOpen
+        'no-cart': isMerchantMode || !cartItems.length,
+        'cart-open': !isMerchantMode && isMobile && cartOpen,
+        'merchant-mode': isMerchantMode
       }"
     >
       <nav class="nav-panel">
@@ -44,8 +45,27 @@
                 <h3>{{ item.name }}</h3>
                 <p>{{ item.description || section.placeholder }}</p>
                 <footer>
-                  <span>¥ {{ Number(item.price || 0).toFixed(2) }}</span>
-                  <button type="button" @click="addToCart({ ...item, category: section.value })">+</button>
+                  <div class="price-block">
+                    <span>¥ {{ Number(item.price || 0).toFixed(2) }}</span>
+                    <span
+                      v-if="isMerchantMode"
+                      :class="['availability-chip', { offline: item.available === false }]"
+                    >
+                      {{ item.available === false ? '已下架' : '在售' }}
+                    </span>
+                  </div>
+                  <div v-if="isMerchantMode" class="card-actions">
+                    <button type="button" class="card-btn" @click="handleEdit(item)">编辑</button>
+                    <button type="button" class="card-btn danger" @click="handleDelete(item)">删除</button>
+                  </div>
+                  <button
+                    v-else
+                    type="button"
+                    @click="addToCart({ ...item, category: section.value })"
+                    aria-label="加入灵感单"
+                  >
+                    +
+                  </button>
                 </footer>
               </div>
             </article>
@@ -55,7 +75,7 @@
       </main>
 
       <aside
-        v-if="cartItems.length && (cartOpen || !isMobile)"
+        v-if="!isMerchantMode && cartItems.length && (cartOpen || !isMobile)"
         :class="['cart-panel', { 'is-floating': isMobile }]"
       >
         <header>
@@ -88,7 +108,7 @@
       </aside>
 
       <button
-        v-if="isMobile && cartItems.length"
+        v-if="!isMerchantMode && isMobile && cartItems.length"
         :class="['cart-fab', { active: cartOpen }]"
         type="button"
         :aria-label="cartOpen ? '收起购物车' : '打开购物车'"
@@ -101,7 +121,7 @@
   </div>
 
   <transition name="modal-fade">
-    <div v-if="customization.open" class="guide-overlay" role="dialog" aria-modal="true">
+    <div v-if="!isMerchantMode && customization.open" class="guide-overlay" role="dialog" aria-modal="true">
       <div class="guide-mask"></div>
       <div class="guide-panel">
         <header class="guide-header">
@@ -159,9 +179,13 @@ const props = defineProps({
   addToCart: { type: Function, default: null },
   incrementItem: { type: Function, default: null },
   decrementItem: { type: Function, default: null },
-  clearCart: { type: Function, default: null }
+  clearCart: { type: Function, default: null },
+  isMerchant: { type: Boolean, default: false },
+  onEditProduct: { type: Function, default: null },
+  onDeleteProduct: { type: Function, default: null }
 })
 const emit = defineEmits(['checkout'])
+const isMerchantMode = computed(() => !!props.isMerchant)
 
 const navItems = [
   {
@@ -311,6 +335,12 @@ const contentRef = ref(null)
 const internalCart = reactive({})
 const cartOpen = ref(false)
 const isMobile = ref(false)
+const decoratedDrinks = computed(() =>
+  (Array.isArray(props.drinks) ? props.drinks : []).map((drink, index) => ({ drink, index }))
+)
+const filteredDrinks = computed(() =>
+  decoratedDrinks.value.filter(({ drink }) => isMerchantMode.value || drink.available !== false)
+)
 
 const resolveCategory = (drink, index) => {
   const explicit = String(drink.category || drink.type || '').toUpperCase()
@@ -326,17 +356,22 @@ const sections = computed(() =>
   navItems.map((item) => ({
     ...item,
     anchor: `section-${item.value.toLowerCase()}`,
-    items: props.drinks.filter((drink, index) => resolveCategory(drink, index) === item.value)
+    items: filteredDrinks.value
+      .filter(({ drink, index }) => resolveCategory(drink, index) === item.value)
+      .map(({ drink }) => drink)
   }))
 )
 
-const cartItems = computed(() =>
-  Array.isArray(props.cartItems) ? props.cartItems : Object.values(internalCart)
-)
-const cartCount = computed(() =>
-  cartItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-)
+const cartItems = computed(() => {
+  if (isMerchantMode.value) return []
+  return Array.isArray(props.cartItems) ? props.cartItems : Object.values(internalCart)
+})
+const cartCount = computed(() => {
+  if (isMerchantMode.value) return 0
+  return cartItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+})
 const cartTotal = computed(() => {
+  if (isMerchantMode.value) return 0
   if (Array.isArray(props.cartItems) && typeof props.cartTotal === 'number') {
     return props.cartTotal
   }
@@ -419,6 +454,16 @@ const dispatchCartPayload = (payload) => {
     customSummary: payload.customSummary,
     customizations: payload.customizations
   })
+}
+
+const handleEdit = (item) => {
+  if (!item || typeof props.onEditProduct !== 'function') return
+  props.onEditProduct(item)
+}
+
+const handleDelete = (item) => {
+  if (!item || typeof props.onDeleteProduct !== 'function') return
+  props.onDeleteProduct(item)
 }
 
 const openCustomization = (product) => {
@@ -543,6 +588,10 @@ const toggleCart = () => {
 const updateDevice = () => {
   if (typeof window === 'undefined') return
   isMobile.value = window.innerWidth <= 960
+  if (isMerchantMode.value) {
+    cartOpen.value = false
+    return
+  }
   if (!isMobile.value && cartItems.value.length) {
     cartOpen.value = true
   }
@@ -552,6 +601,10 @@ const updateDevice = () => {
 }
 
 watch(cartItems, (items) => {
+  if (isMerchantMode.value) {
+    cartOpen.value = false
+    return
+  }
   if (!items.length) {
     cartOpen.value = false
     return
@@ -655,19 +708,26 @@ onUnmounted(() => {
   padding: 12px;
   background: rgba(2, 6, 23, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.25);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  min-height: 260px;
 }
 
 .cover {
+  position: relative;
   border-radius: 18px;
-  padding-bottom: 60%;
+  width: 100%;
+  aspect-ratio: 4 / 3;
   background-size: cover;
   background-position: center;
+  overflow: hidden;
 }
 
 .info {
-  display: grid;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
@@ -675,6 +735,25 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.price-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.availability-chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(74, 222, 128, 0.7);
+  font-size: 0.75rem;
+  color: #4ade80;
+}
+
+.availability-chip.offline {
+  border-color: rgba(248, 113, 113, 0.8);
+  color: #fecdd3;
 }
 
 .info footer button {
@@ -685,6 +764,27 @@ onUnmounted(() => {
   background: rgba(59, 130, 246, 0.35);
   color: #0f172a;
   font-size: 1.2rem;
+}
+
+.card-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.card-btn {
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 18px;
+  padding: 6px 12px;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.card-btn.danger {
+  border-color: rgba(248, 113, 113, 0.8);
+  color: #fecdd3;
 }
 
 .empty-tip {
@@ -724,7 +824,9 @@ onUnmounted(() => {
   border-radius: 16px;
   background-size: cover;
   background-position: center;
-  min-height: 56px;
+  width: 56px;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
 }
 
 .cart-info {

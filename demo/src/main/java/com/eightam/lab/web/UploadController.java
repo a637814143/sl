@@ -23,10 +23,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class UploadController {
 
     private final Path avatarDir = Paths.get("uploads/avatars");
+    private final Path assetDir = Paths.get("uploads/assets");
 
     public UploadController() {
         try {
             Files.createDirectories(avatarDir);
+            Files.createDirectories(assetDir);
         } catch (IOException e) {
             throw new IllegalStateException("无法创建上传目录", e);
         }
@@ -51,6 +53,30 @@ public class UploadController {
         String url =
                 ServletUriComponentsBuilder.fromCurrentContextPath()
                         .path("/uploads/avatars/")
+                        .path(filename)
+                        .toUriString();
+        return Map.of("url", url);
+    }
+
+    @PostMapping("/assets")
+    public Map<String, String> uploadAsset(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择要上传的素材图片");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "仅支持上传图片文件");
+        }
+        String filename = buildFilename(file.getOriginalFilename());
+        Path target = assetDir.resolve(filename);
+        try {
+            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "上传失败，请稍后再试");
+        }
+        String url =
+                ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/uploads/assets/")
                         .path(filename)
                         .toUriString();
         return Map.of("url", url);

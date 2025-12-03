@@ -29,7 +29,7 @@
               :increment-item="addCartItem"
               :decrement-item="decrementCartItem"
               :clear-cart="clearSharedCart"
-              @checkout="openStorePicker"
+              @checkout="enterCheckout"
             />
           </template>
           <div v-else class="store-gate-empty">
@@ -486,53 +486,51 @@
                   <span>标签（可选）</span>
                   <input v-model="productForm.tag" type="text" placeholder="季节限定 / 热卖" />
                 </label>
+                <label>
+                  <span>在售状态</span>
+                  <div class="toggle-row">
+                    <input type="checkbox" id="product-available" v-model="productForm.available" />
+                    <span>{{ productForm.available ? '在售 · 客户可见' : '已下架 · 顾客端隐藏' }}</span>
+                  </div>
+                </label>
               </div>
               <div class="form-actions">
-                <button class="primary" type="submit">
-                  {{ productForm.id ? '更新商品' : '新增商品' }}
+                <button class="primary" type="submit" :disabled="productSaving">
+                  {{ productSaving ? '保存中...' : productForm.id ? '更新商品' : '新增商品' }}
                 </button>
                 <button class="ghost" type="button" v-if="productForm.id" @click="resetProductForm">取消编辑</button>
               </div>
             </form>
             <p class="feedback" v-if="merchantHomeNotice">{{ merchantHomeNotice }}</p>
-            <div class="library-groups">
-              <article v-for="category in productCategories" :key="category.value" class="library-group">
-                <header>
+            <div class="library-summary">
+              <article v-for="category in productCategories" :key="category.value" class="summary-card">
+                <div class="summary-head">
+                  <div class="summary-icon">{{ category.icon }}</div>
                   <div>
-                    <h3>{{ category.label }}</h3>
-                    <p>{{ category.desc }}</p>
+                    <p class="summary-label">{{ category.label }}</p>
+                    <strong>{{ productLibraryByCategory[category.value]?.length || 0 }} 款</strong>
                   </div>
-                  <small>共 {{ productLibraryByCategory[category.value]?.length || 0 }} 款</small>
-                </header>
-                <ul v-if="productLibraryByCategory[category.value]?.length">
-                  <li v-for="item in productLibraryByCategory[category.value]" :key="item.id">
-                    <div>
-                      <strong>{{ item.name }}</strong>
-                      <span>¥ {{ Number(item.price || 0).toFixed(2) }}</span>
-                      <small>{{ item.description || '暂无描述' }}</small>
-                    </div>
-                    <div class="library-actions">
-                      <button class="ghost" type="button" @click="editProduct(item)">编辑</button>
-                      <button class="danger" type="button" @click="deleteProduct(item.id)">删除</button>
-                    </div>
-                  </li>
-                </ul>
-                <p v-else class="library-empty">暂无该分类商品，欢迎新增。</p>
+                </div>
+                <p>{{ category.desc }}</p>
               </article>
+              <p class="library-tip">详细编辑和删除请下滑至“灵感单专场”进行管理。</p>
             </div>
           </article>
         </template>
         <CategoryShowcase
           :drinks="productLibrary"
           initial-category="DESSERT"
-          :cart-items="sharedCartItems"
-          :cart-summary="sharedCartSummary"
-          :cart-total="sharedCartTotal"
-          :add-to-cart="addCartItem"
-          :increment-item="addCartItem"
-          :decrement-item="decrementCartItem"
-          :clear-cart="clearSharedCart"
-          @checkout="openStorePicker"
+          :cart-items="isMerchant ? [] : sharedCartItems"
+          :cart-summary="isMerchant ? null : sharedCartSummary"
+          :cart-total="isMerchant ? 0 : sharedCartTotal"
+          :add-to-cart="isMerchant ? null : addCartItem"
+          :increment-item="isMerchant ? null : addCartItem"
+          :decrement-item="isMerchant ? null : decrementCartItem"
+          :clear-cart="isMerchant ? null : clearSharedCart"
+          :is-merchant="isMerchant"
+          :on-edit-product="isMerchant ? editProduct : null"
+          :on-delete-product="isMerchant ? deleteProduct : null"
+          @checkout="enterCheckout"
         />
       </section>
 
@@ -1007,7 +1005,11 @@ import {
   updateUserProfile,
   uploadAvatar,
   uploadAsset,
-  createAlipayPayment
+  createMerchantProduct,
+  updateMerchantProduct,
+  deleteMerchantProduct,
+  createAlipayPayment,
+  setAuthToken
 } from './services/api'
 
 const roles = [
@@ -1040,7 +1042,8 @@ const productForm = reactive({
   price: '',
   description: '',
   imageUrl: '',
-  tag: ''
+  tag: '',
+  available: true
 })
 const productErrors = reactive({})
 const normalizeCategory = (value) => {
@@ -1134,6 +1137,7 @@ const authForm = reactive({
 const authErrors = reactive({})
 const authFeedback = ref('')
 const currentUser = ref(null)
+const authSessionToken = ref('')
 
 const genderOptions = ['女', '男', '保密']
 const profileForm = reactive({
@@ -1236,6 +1240,7 @@ let menuAlertTimer = null
 let merchantHomeNoticeTimer = null
 const productImageUploading = ref(false)
 const carouselImageUploading = ref(false)
+const productSaving = ref(false)
 
 const adminKpis = computed(() => {
   const overview = adminOverview.value || {}
@@ -1658,6 +1663,7 @@ const resetProductForm = () => {
   productForm.description = ''
   productForm.imageUrl = ''
   productForm.tag = ''
+  productForm.available = true
   Object.keys(productErrors).forEach((key) => delete productErrors[key])
 }
 
@@ -1815,32 +1821,45 @@ const validateProductForm = () => {
   return errors
 }
 
-const saveProduct = () => {
+const saveProduct = async () => {
   const errors = validateProductForm()
   Object.keys(productErrors).forEach((key) => delete productErrors[key])
   Object.assign(productErrors, errors)
   if (Object.keys(errors).length) return
 
+  if (!currentUser.value?.merchantId) {
+    setMerchantHomeNotice('请先以商家身份登录')
+    return
+  }
+
   const payload = {
-    id: productForm.id || `sku-${Date.now()}`,
+    merchantId: currentUser.value.merchantId,
     category: normalizeCategory(productForm.category),
     name: productForm.name.trim(),
     price: Number(productForm.price),
-    description: productForm.description.trim(),
-    imageUrl: productForm.imageUrl.trim(),
-    tag: productForm.tag.trim()
+    description: productForm.description.trim() || null,
+    imageUrl: productForm.imageUrl.trim() || null,
+    flavorProfile: productForm.tag.trim() || null,
+    available: Boolean(productForm.available)
   }
 
-  if (productForm.id) {
-    productLibrary.value = productLibrary.value.map((item) =>
-      item.id === productForm.id ? { ...item, ...payload } : item
-    )
-    setMerchantHomeNotice(`已更新「${payload.name}」`)
-  } else {
-    productLibrary.value = [{ ...payload }, ...productLibrary.value]
-    setMerchantHomeNotice(`已新增「${payload.name}」`)
+  productSaving.value = true
+  try {
+    if (productForm.id) {
+      await updateMerchantProduct(productForm.id, payload)
+      setMerchantHomeNotice(`已更新「${payload.name}」`)
+    } else {
+      await createMerchantProduct(payload)
+      setMerchantHomeNotice(`已新增「${payload.name}」`)
+    }
+    await loadSharedResources(currentUser.value.merchantId)
+    resetProductForm()
+  } catch (error) {
+    const message = error.response?.data?.message || '保存失败，请稍后再试'
+    setMerchantHomeNotice(message)
+  } finally {
+    productSaving.value = false
   }
-  resetProductForm()
 }
 
 const editProduct = (product) => {
@@ -1852,19 +1871,32 @@ const editProduct = (product) => {
   productForm.description = product.description || ''
   productForm.imageUrl = product.imageUrl || ''
   productForm.tag = product.tag || ''
+  productForm.available = product.available !== false
   Object.keys(productErrors).forEach((key) => delete productErrors[key])
 }
 
-const deleteProduct = (id) => {
+const deleteProduct = async (target) => {
+  const id = typeof target === 'object' ? target?.id : target
   if (!id) return
-  if (typeof window !== 'undefined' && !window.confirm('确认删除该商品吗？')) {
+  const hint = typeof target === 'object' && target?.name ? `“${target.name}”` : '该商品'
+  if (typeof window !== 'undefined' && !window.confirm(`确认删除${hint}吗？`)) {
     return
   }
-  productLibrary.value = productLibrary.value.filter((item) => item.id !== id)
-  if (productForm.id === id) {
-    resetProductForm()
+  if (!currentUser.value?.merchantId) {
+    setMerchantHomeNotice('请先登录商家账号')
+    return
   }
-  setMerchantHomeNotice('商品已删除')
+  try {
+    await deleteMerchantProduct(id, currentUser.value.merchantId)
+    if (productForm.id === id) {
+      resetProductForm()
+    }
+    await loadSharedResources(currentUser.value.merchantId)
+    setMerchantHomeNotice('商品已删除')
+  } catch (error) {
+    const message = error.response?.data?.message || '删除失败，请稍后再试'
+    setMerchantHomeNotice(message)
+  }
 }
 
 const addCarouselItem = () => {
@@ -2131,6 +2163,17 @@ const confirmStoreSelection = () => {
   activeTab.value = nextTab
 }
 
+const enterCheckout = () => {
+  if (showWorkbench.value) return
+  if (!sharedCartItems.value.length) {
+    checkoutFeedback.value = '购物车为空，去挑选喜欢的灵感饮品吧'
+    activeTab.value = 'home'
+    return
+  }
+  checkoutFeedback.value = ''
+  activeTab.value = 'checkout'
+}
+
 const handleCheckoutSubmit = async () => {
   if (checkoutDisabled.value) return
   if (!currentUser.value) {
@@ -2270,6 +2313,14 @@ const setLoginRole = (role) => {
 
 const roleLabel = (role) => roles.find((item) => item.value === role)?.label || role
 
+const applyAuthSession = (session) => {
+  const user = session?.user || null
+  authSessionToken.value = session?.token || ''
+  setAuthToken(authSessionToken.value)
+  currentUser.value = user
+  return user
+}
+
 const submitAuth = async () => {
   const errors = validateAuth()
   Object.keys(authErrors).forEach((key) => delete authErrors[key])
@@ -2287,13 +2338,17 @@ const submitAuth = async () => {
       if (registerRole.value === 'MERCHANT') {
         payload.merchantId = authForm.merchantId
       }
-      const user = await register(payload)
-      currentUser.value = user
-      loginRole.value = user.role
+      const session = await register(payload)
+      const user = applyAuthSession(session)
+      if (user?.role) {
+        loginRole.value = user.role
+      }
       setAuthMode('login')
-      authFeedback.value = '注册成功，已为你登录。'
+      authFeedback.value = '???????????'
       authForm.password = ''
-      await afterAuth(user)
+      if (user) {
+        await afterAuth(user)
+      }
       if (activeTab.value === 'profileLogin') {
         activeTab.value = 'profile'
       }
@@ -2303,22 +2358,26 @@ const submitAuth = async () => {
         password: authForm.password,
         role: loginRole.value
       }
-      const user = await login(payload)
-      currentUser.value = user
-      authFeedback.value = `欢迎回来，${user.displayName}`
+      const session = await login(payload)
+      const user = applyAuthSession(session)
+      const greeting = user?.displayName || user?.username || '????'
+      authFeedback.value = `?????${greeting}`
       authForm.password = ''
-      await afterAuth(user)
+      if (user) {
+        await afterAuth(user)
+      }
       if (activeTab.value === 'profileLogin') {
         activeTab.value = 'profile'
       }
     }
   } catch (error) {
-    authFeedback.value = error.response?.data?.message || '操作失败，请稍后再试'
+    authFeedback.value = error.response?.data?.message || '??????????'
   }
 }
-
 const logout = () => {
   currentUser.value = null
+  authSessionToken.value = ''
+  setAuthToken('')
   loginRole.value = 'CUSTOMER'
   registerRole.value = 'CUSTOMER'
   authFeedback.value = ''
@@ -2374,7 +2433,9 @@ const loadSharedResources = async (merchantId = selectedMerchantId.value) => {
   const drinks = await fetchCatalogDrinks(params)
   productLibrary.value = drinks.map((drink, index) => ({
     ...drink,
-    category: normalizeCategory(drink.category || drink.type || productCategories[index % productCategories.length].value)
+    category: normalizeCategory(drink.category || drink.type || productCategories[index % productCategories.length].value),
+    tag: drink.flavorProfile || drink.tag || '',
+    available: drink.available !== false
   }))
   merchants.value = await fetchMerchants()
   orderOverview.value = await fetchOrderOverview()
@@ -2729,6 +2790,22 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+.product-form .toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.product-form .toggle-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+}
+
 .product-form .full-width {
   grid-column: 1 / -1;
 }
@@ -2759,64 +2836,56 @@ onMounted(async () => {
   gap: 12px;
 }
 
-.library-groups {
+.library-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
 }
 
-.library-group {
+.summary-card {
   border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.25);
-  padding: 14px;
+  padding: 16px;
   background: rgba(15, 23, 42, 0.6);
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
-.library-group header {
+.summary-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
 
-.library-group ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.library-group li {
+.summary-icon {
+  width: 42px;
+  height: 42px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  padding: 10px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
+  background: rgba(59, 130, 246, 0.15);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
 }
 
-.library-group li strong {
-  display: block;
-}
-
-.library-group li small {
-  display: block;
-  color: rgba(148, 163, 184, 0.8);
-}
-
-.library-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.library-empty {
+.summary-label {
   margin: 0;
-  color: rgba(148, 163, 184, 0.75);
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.summary-card strong {
+  font-size: 1.5rem;
+}
+
+.summary-card p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.library-tip {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  color: rgba(148, 163, 184, 0.8);
   font-size: 0.9rem;
 }
 

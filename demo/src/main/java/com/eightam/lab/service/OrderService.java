@@ -16,6 +16,8 @@ import java.util.Objects;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class OrderService {
@@ -34,14 +36,15 @@ public class OrderService {
 
     @Transactional
     public OrderResponse placeOrder(CreateOrderRequest request) {
-        MerchantProduct merchantProduct = merchantProductRepository.findByIdAndMerchantId(
-                        request.drinkId(), request.merchantId())
-                .orElseThrow(() -> new IllegalArgumentException("未找到对应的门店商品"));
-        if (!merchantProduct.isAvailable()) {
-            throw new IllegalStateException("该商品暂不可售");
+        MerchantProduct merchantProduct = merchantProductRepository.findById(request.drinkId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到对应的商品"));
+        Merchant merchant = merchantProduct.getMerchant();
+        if (merchant == null || !Objects.equals(merchant.getId(), request.merchantId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择当前门店下的商品");
         }
-        Merchant merchant = merchantRepository.findById(request.merchantId())
-                .orElseThrow(() -> new IllegalArgumentException("未找到对应的门店"));
+        if (!merchantProduct.isAvailable()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "该商品暂不可售");
+        }
         Product product = merchantProduct.getProduct();
 
         DrinkOrder newOrder = new DrinkOrder(

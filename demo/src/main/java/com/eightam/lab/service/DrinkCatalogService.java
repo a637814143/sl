@@ -11,9 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class DrinkCatalogService {
 
     private final MerchantProductRepository merchantProductRepository;
+    private final DrinkSummaryMapper drinkSummaryMapper;
 
-    public DrinkCatalogService(MerchantProductRepository merchantProductRepository) {
+    public DrinkCatalogService(MerchantProductRepository merchantProductRepository,
+                               DrinkSummaryMapper drinkSummaryMapper) {
         this.merchantProductRepository = merchantProductRepository;
+        this.drinkSummaryMapper = drinkSummaryMapper;
     }
 
     @Transactional(readOnly = true)
@@ -22,31 +25,7 @@ public class DrinkCatalogService {
                 ? merchantProductRepository.findByMerchantIdAndAvailableTrueOrderByDisplayOrderAscIdAsc(merchantId)
                 : merchantProductRepository.findByAvailableTrueOrderByDisplayOrderAscIdAsc();
         return merchantProducts.stream()
-                .map(this::toSummary)
+                .map(drinkSummaryMapper::toSummary)
                 .toList();
-    }
-
-    private DrinkSummary toSummary(MerchantProduct merchantProduct) {
-        var merchant = merchantProduct.getMerchant();
-        var product = merchantProduct.getProduct();
-        return new DrinkSummary(
-                merchantProduct.getId(),
-                product != null ? product.getId() : null,
-                merchant != null ? merchant.getId() : null,
-                merchant != null ? merchant.getName() : "8AM 灵感实验室",
-                product != null ? product.getSkuCode() : null,
-                merchantProduct.getDisplayName(),
-                product != null ? product.getBasePrice() : null,
-                merchantProduct.getEffectivePrice(),
-                merchantProduct.getDescription(),
-                merchantProduct.getImageUrl(),
-                merchantProduct.getFlavorProfile(),
-                merchantProduct.getCategory(),
-                merchantProduct.isAvailable(),
-                merchantProduct.getDailyStockLimit(),
-                merchantProduct.getAvailableStock(),
-                merchantProduct.getAvailableStart(),
-                merchantProduct.getAvailableEnd()
-        );
     }
 }

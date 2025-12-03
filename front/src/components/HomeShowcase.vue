@@ -327,8 +327,12 @@ const internalCart = reactive({})
 const cartOpen = ref(false)
 const isMobile = ref(false)
 
+const visibleDrinks = computed(() =>
+  (Array.isArray(props.drinks) ? props.drinks : []).filter((drink) => drink.available !== false)
+)
+
 const preparedDrinks = computed(() =>
-  props.drinks.map((drink, index) => ({
+  visibleDrinks.value.map((drink, index) => ({
     id: drink.id ?? `drink-${index}`,
     name: drink.name ?? `灵感饮品 ${index + 1}`,
     description: drink.description ?? '这杯饮品正在等待你来定义故事。',
@@ -770,14 +774,17 @@ onUnmounted(() => {
   padding: 12px;
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(148, 163, 184, 0.25);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  min-height: 260px;
 }
 
 .cover {
   position: relative;
   border-radius: 18px;
-  padding-bottom: 60%;
+  width: 100%;
+  aspect-ratio: 4 / 3;
   background-size: cover;
   background-position: center;
   overflow: hidden;
@@ -795,7 +802,9 @@ onUnmounted(() => {
 }
 
 .info {
-  display: grid;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
@@ -864,7 +873,8 @@ onUnmounted(() => {
   background-size: cover;
   background-position: center;
   position: relative;
-  min-height: 56px;
+  width: 56px;
+  aspect-ratio: 1 / 1;
 }
 
 .mini-tag {
