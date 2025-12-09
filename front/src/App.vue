@@ -3,7 +3,83 @@
     <header class="status-bar">8am 实验室 · 清晨饮品站</header>
     <main class="content">
       <section v-if="activeTab === 'home'" class="panel home-panel">
-        <template v-if="!isMerchant">
+        <template v-if="isAdmin">
+          <div class="admin-request-board">
+            <header class="section-header">
+              <div>
+                <h2>商家账号申请</h2>
+                <p class="section-desc">新的商家账号需管理员审核后才能登录。</p>
+              </div>
+              <div class="request-summary">
+                <article class="request-summary-card">
+                  <p class="card-label">待审批</p>
+                  <strong>{{ merchantApprovalStats.pending }}</strong>
+                  <small>当前排队</small>
+                </article>
+                <article class="request-summary-card">
+                  <p class="card-label">今日新增</p>
+                  <strong>{{ merchantApprovalStats.today }}</strong>
+                  <small>今日提交</small>
+                </article>
+                <article class="request-summary-card">
+                  <p class="card-label">累计申请</p>
+                  <strong>{{ merchantApprovalStats.total }}</strong>
+                  <small>历史记录</small>
+                </article>
+              </div>
+            </header>
+
+            <div v-if="merchantRequestsLoading" class="store-empty">正在加载申请...</div>
+            <p class="feedback" v-if="merchantRequestsError">{{ merchantRequestsError }}</p>
+            <ul class="request-list" v-else-if="pendingMerchantRequests.length">
+              <li v-for="request in pendingMerchantRequests" :key="request.id">
+                <div>
+                  <strong>{{ request.merchantName }}</strong>
+                  <p class="request-meta">
+                    申请人：{{ request.applicant }} · {{ request.phone }} · {{ request.submittedAt }}
+                  </p>
+                  <p class="request-meta">{{ request.location }}</p>
+                  <small>{{ request.note || '暂无备注' }}</small>
+                </div>
+                <div class="request-actions">
+                  <button
+                    class="ghost"
+                    type="button"
+                    :disabled="merchantRequestProcessing === request.id"
+                    @click="handleRejectMerchantRequest(request)"
+                  >
+                    驳回
+                  </button>
+                  <button
+                    class="primary"
+                    type="button"
+                    :disabled="merchantRequestProcessing === request.id"
+                    @click="handleApproveMerchantRequest(request)"
+                  >
+                    同意
+                  </button>
+                </div>
+              </li>
+            </ul>
+            <div v-else class="store-empty">暂无新的商家账号申请。</div>
+
+            <section class="history-list" v-if="processedMerchantRequests.length">
+              <h3>最近处理</h3>
+              <ul>
+                <li v-for="request in processedMerchantRequests" :key="request.id">
+                  <div>
+                    <p>{{ request.merchantName }}</p>
+                    <small>{{ request.applicant }} · {{ request.processedAt || request.submittedAt }}</small>
+                  </div>
+                  <span class="status-pill" :class="request.status === 'APPROVED' ? 'success' : 'pending'">
+                    {{ request.status === 'APPROVED' ? '已同意' : '已驳回' }}
+                  </span>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </template>
+        <template v-else-if="!isMerchant">
           <article class="store-gate" :class="{ empty: !selectedMerchant }">
             <div>
               <p class="card-label">{{ selectedMerchant ? '当前门店' : '选择门店' }}</p>
@@ -102,7 +178,6 @@
               <div class="action-grid">
                 <button class="primary" type="button" @click="activeTab = 'order'">打开工作台 · 管理商品</button>
                 <button class="ghost" type="button" @click="announceStatus">发送营业状态通知</button>
-                <button class="ghost" type="button" @click="syncRecommendationsFromMenu">同步推荐到顾客端</button>
               </div>
             </section>
           </div>
@@ -148,7 +223,7 @@
               </button>
             </nav>
 
-            <section v-if="adminActivePanel === 'dashboard'" class="admin-section">
+            <section v-if="adminActivePanel === 'overview'" class="admin-section">
               <div class="dashboard-grid admin-kpi-grid">
                 <article
                   v-for="card in adminKpis"
@@ -164,7 +239,7 @@
               <div class="dashboard-secondary">
                 <article class="timeline-card">
                   <header>
-                    <p class="card-label">订单流程</p>
+                    <p class="card-label">数据流程</p>
                     <small>实时状态</small>
                   </header>
                   <ul class="pipeline">
@@ -180,41 +255,63 @@
                     </li>
                   </ul>
                 </article>
-                <article class="insight-card">
+                <article class="insight-card compact">
                   <header>
                     <p class="card-label">今日焦点</p>
-                    <small>来自系统巡检</small>
+                    <small>自动巡检</small>
                   </header>
                   <h3 class="insight-title">{{ adminFocus.title }}</h3>
                   <p class="insight-desc">{{ adminFocus.desc }}</p>
-                  <div class="insight-actions">
-                    <button class="primary" type="button" @click="adminActivePanel = 'network'">前往门店网络</button>
-                    <button class="ghost" type="button" @click="handleAdminShortcut(adminFocus.title)">加入监控</button>
-                  </div>
-                </article>
-              </div>
-            </section>
-
-            <section v-else-if="adminActivePanel === 'network'" class="admin-section">
-              <header class="section-header">
-                <div>
-                  <h2>门店网络</h2>
-                  <p class="section-desc">掌握排队 · 排班调度 · 跨城协同。</p>
-                </div>
-                <button class="ghost" type="button" @click="handleAdminShortcut('发布调度指令')">调度看板</button>
-              </header>
-              <div class="pipeline-grid">
-                <article v-for="stage in adminPipeline" :key="stage.label" class="order-stage-card">
-                  <header>
-                    <p class="card-label">{{ stage.label }}</p>
-                    <strong>{{ stage.value }}</strong>
-                  </header>
-                  <p>{{ stage.desc }}</p>
-                  <button class="ghost" type="button" @click="handleAdminShortcut(stage.label)">推送调度</button>
+                  <div class="insight-actions"></div>
                 </article>
               </div>
               <div class="order-hints">
                 <p>{{ adminAutomationHint }}</p>
+              </div>
+            </section>
+
+            <section v-else-if="adminActivePanel === 'merchants'" class="admin-section">
+              <header class="section-header">
+                <div>
+                  <h2>商家与门店</h2>
+                  <p class="section-desc">集中管理门店资料、账号权限与准入状态。</p>
+                </div>
+                <button class="ghost" type="button" @click="handleAdminShortcut('新增商家')">新增商家</button>
+              </header>
+              <div class="admin-table" v-if="adminMerchantTable.length">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>门店</th>
+                      <th>地址</th>
+                      <th>联系人</th>
+                      <th>状态</th>
+                      <th>待处理</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="merchant in adminMerchantTable" :key="merchant.id">
+                      <td>
+                        <strong>{{ merchant.name }}</strong>
+                        <p>{{ merchant.id }}</p>
+                      </td>
+                      <td>{{ merchant.location }}</td>
+                      <td>{{ merchant.contact }}</td>
+                      <td><span class="status-pill" :class="merchant.statusClass">{{ merchant.status }}</span></td>
+                      <td>
+                        <p v-if="merchant.pending">{{ merchant.pending }} 条待审核</p>
+                        <p v-else>—</p>
+                        <div class="table-actions">
+                          <button class="ghost" type="button" @click="handleAdminShortcut('编辑商家资料')">编辑</button>
+                          <button class="ghost" type="button" @click="handleAdminShortcut('分配权限')">授权</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="store-empty" v-else>
+                暂无门店数据，待商家端完成资料同步后在此审核。
               </div>
               <div class="store-grid">
                 <article v-for="store in adminStoreCards" :key="store.id" class="store-card">
@@ -228,49 +325,87 @@
                     <li>产能：{{ store.capacity }}</li>
                     <li>负责人：{{ store.manager }}</li>
                   </ul>
-                  <button class="ghost" type="button" @click="handleAdminShortcut(store.name + ' 调度')">调度门店</button>
-                </article>
-                <article v-if="!adminStoreCards.length" class="store-empty">
-                  暂无门店数据，请先通过商家端同步门店信息后刷新。
+                  <button class="ghost" type="button" @click="handleAdminShortcut(store.name + ' 审核')">查看详情</button>
                 </article>
               </div>
             </section>
 
-            <section v-else-if="adminActivePanel === 'marketing'" class="admin-section">
+            <section v-else-if="adminActivePanel === 'datasets'" class="admin-section">
               <header class="section-header">
                 <div>
-                  <h2>营销与会员</h2>
-                  <p class="section-desc">一键配置会员权益、订阅提醒与活动海报。</p>
+                  <h2>数据维护</h2>
+                  <p class="section-desc">统一审核商品、素材与分类，确保顾客端数据一致。</p>
                 </div>
-                <button class="ghost" type="button" @click="handleAdminShortcut('会员推送排期')">生成排期</button>
+                <button class="ghost" type="button" @click="handleAdminShortcut('同步商品档案')">同步数据</button>
               </header>
-              <div class="campaign-grid">
-                <article v-for="campaign in adminCampaigns" :key="campaign.title" class="campaign-card">
-                  <p class="card-label">{{ campaign.type }}</p>
-                  <h3>{{ campaign.title }}</h3>
-                  <p>{{ campaign.desc }}</p>
-                  <button class="primary" type="button" @click="handleAdminShortcut(campaign.title)">{{ campaign.action }}</button>
+              <div class="dashboard-grid admin-kpi-grid">
+                <article v-for="card in adminDatasetSummary" :key="card.key" class="dashboard-card">
+                  <p class="card-label">{{ card.label }}</p>
+                  <strong>{{ card.value }}</strong>
+                  <span>{{ card.desc }}</span>
                 </article>
+              </div>
+              <div class="admin-table" v-if="adminDatasetTable.length">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>商品</th>
+                      <th>分类</th>
+                      <th>定价</th>
+                      <th>状态</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in adminDatasetTable" :key="item.id">
+                      <td>{{ item.name }}</td>
+                      <td>{{ item.category }}</td>
+                      <td>¥ {{ item.price }}</td>
+                      <td><span class="status-pill" :class="item.statusClass">{{ item.status }}</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="store-empty" v-else>暂无商品档案，请先从商家端提交数据。</div>
+              <div class="table-actions">
+                <button class="primary" type="button" @click="handleAdminShortcut('批量上架')">批量上架</button>
+                <button class="ghost" type="button" @click="handleAdminShortcut('导出档案')">导出档案</button>
               </div>
             </section>
 
             <section v-else class="admin-section">
               <header class="section-header">
                 <div>
-                  <h2>系统配置</h2>
-                  <p class="section-desc">权限、审计、消息模板统一管理。</p>
+                  <h2>权限与日志</h2>
+                  <p class="section-desc">配置角色模板，并快速浏览关键操作记录。</p>
                 </div>
-                <button class="ghost" type="button" @click="handleAdminShortcut('发布灰度版本')">发布灰度</button>
+                <button class="ghost" type="button" @click="handleAdminShortcut('导出审计日志')">导出日志</button>
               </header>
-              <ul class="settings-list">
-                <li v-for="item in adminSettings" :key="item.label">
-                  <div>
-                    <strong>{{ item.label }}</strong>
-                    <p>{{ item.desc }}</p>
-                  </div>
-                  <button class="ghost" type="button" @click="handleAdminShortcut(item.label)">{{ item.action }}</button>
-                </li>
-              </ul>
+              <div class="permission-layout">
+                <section class="role-column">
+                  <article v-for="role in adminRoleTemplates" :key="role.id" class="role-card">
+                    <header>
+                      <strong>{{ role.name }}</strong>
+                      <small>{{ role.desc }}</small>
+                    </header>
+                    <div class="permission-tags">
+                      <span v-for="scope in role.scopes" :key="scope">{{ scope }}</span>
+                    </div>
+                    <button class="ghost" type="button" @click="handleAdminShortcut(role.name)">应用模板</button>
+                  </article>
+                </section>
+                <section class="log-column">
+                  <h3>操作日志</h3>
+                  <ul class="log-list">
+                    <li v-for="log in adminAuditLogs" :key="log.id">
+                      <div>
+                        <p>{{ log.action }}</p>
+                        <small>{{ log.module }} · {{ log.time }} · {{ log.operator }}</small>
+                      </div>
+                      <span class="status-pill" :class="log.status === '成功' ? 'success' : 'pending'">{{ log.status }}</span>
+                    </li>
+                  </ul>
+                </section>
+              </div>
             </section>
 
             <p class="feedback admin-feedback" v-if="adminCommandFeedback">{{ adminCommandFeedback }}</p>
@@ -444,11 +579,32 @@
       </section>
 
       <section v-else-if="activeTab === 'explore'" class="panel explore-panel">
-        <template v-if="isMerchant">
-          <article class="product-library-panel">
-            <header class="section-header">
-              <div>
-                <h2>商品库 · 品类管理</h2>
+        <template v-if="isAdmin">
+          <div class="admin-explore-switch">
+            <button
+              type="button"
+              :class="{ active: adminExploreTab === 'accounts' }"
+              @click="adminExploreTab = 'accounts'"
+            >
+              账号管理
+            </button>
+            <button
+              type="button"
+              :class="{ active: adminExploreTab === 'merchants' }"
+              @click="adminExploreTab = 'merchants'"
+            >
+              商家管理
+            </button>
+          </div>
+          <AccountManagement v-if="adminExploreTab === 'accounts'" />
+          <MerchantManagement v-else :on-refresh="refreshMerchantsOnly" />
+        </template>
+        <template v-else>
+          <template v-if="isMerchant">
+            <article class="product-library-panel">
+              <header class="section-header">
+                <div>
+                  <h2>商品库 · 品类管理</h2>
                 <p class="section-desc">统一维护顾客端与门店共享的商品档案。</p>
               </div>
               <small>共 {{ productLibrary.length }} 款商品</small>
@@ -532,6 +688,7 @@
           :on-delete-product="isMerchant ? deleteProduct : null"
           @checkout="enterCheckout"
         />
+        </template>
       </section>
 
       <section v-else-if="activeTab === 'storePicker'" class="panel store-picker-page">
@@ -965,7 +1122,7 @@
       </button>
       <button :class="{ active: activeTab === 'explore' }" @click="activeTab = 'explore'">
         <span class="icon">✨</span>
-        <span>灵感</span>
+        <span>{{ isAdmin ? '账号' : '灵感' }}</span>
       </button>
       <button
         :class="{
@@ -991,6 +1148,8 @@ const profileBg = brandLogo
 import OrderForm from './components/OrderForm.vue'
 import HomeShowcase from './components/HomeShowcase.vue'
 import CategoryShowcase from './components/CategoryShowcase.vue'
+import AccountManagement from './components/AccountManagement.vue'
+import MerchantManagement from './components/MerchantManagement.vue'
 import {
   login,
   register,
@@ -1009,6 +1168,9 @@ import {
   updateMerchantProduct,
   deleteMerchantProduct,
   createAlipayPayment,
+  fetchMerchantRequests,
+  approveMerchantRequest,
+  rejectMerchantRequest,
   setAuthToken
 } from './services/api'
 
@@ -1026,13 +1188,57 @@ const productCategories = [
 ]
 
 const adminPanels = [
-  { key: 'dashboard', label: '驾驶舱', desc: '实时概览', icon: '总览' },
-  { key: 'network', label: '门店网络', desc: '调度与预警', icon: '门店' },
-  { key: 'marketing', label: '营销策略', desc: '会员触达', icon: '营销' },
-  { key: 'settings', label: '系统配置', desc: '权限与安全', icon: '系统' }
+  { key: 'overview', label: '数据概览', desc: '掌控业务关键指标', icon: '数据' },
+  { key: 'merchants', label: '商家管理', desc: '门店与账号权限', icon: '商家' }
 ]
 
+const merchantRequests = ref([])
+const merchantRequestsLoading = ref(false)
+const merchantRequestsError = ref('')
+const merchantRequestProcessing = ref('')
+
+const normalizeMerchantRequest = (item = {}) => {
+  const status = String(item.status || 'PENDING').toUpperCase()
+  const submittedAt = formatDateLabel(item.createdAt)
+  const processedAt = item.processedAt ? formatDateLabel(item.processedAt) : ''
+  const fallbackId = `REQ-${Date.now()}-${Math.round(Math.random() * 1000)}`
+  return {
+    id: item.id || item.requestId || fallbackId,
+    merchantName: item.merchantName || item.name || '未命名门店',
+    applicant: item.applicantName || item.contactName || '申请人未填写',
+    phone: item.phone || item.contactPhone || '—',
+    location: item.location || item.address || '地址待补充',
+    note: item.note || item.remark || '',
+    status,
+    submittedAt,
+    processedAt,
+    isToday: item.createdAt ? isTodayDate(item.createdAt) : false
+  }
+}
+
+const pendingMerchantRequests = computed(() =>
+  merchantRequests.value.filter((request) => request.status === 'PENDING')
+)
+
+const processedMerchantRequests = computed(() =>
+  merchantRequests.value
+    .filter((request) => request.status !== 'PENDING')
+    .slice(0, 5)
+)
+
+const merchantApprovalStats = computed(() => {
+  const total = merchantRequests.value.length
+  const pending = pendingMerchantRequests.value.length
+  const today = pendingMerchantRequests.value.filter((request) => request.isToday).length
+  return {
+    total,
+    pending,
+    today
+  }
+})
+
 const activeTab = ref('home')
+const adminExploreTab = ref('accounts')
 const adminActivePanel = ref(adminPanels[0].key)
 const productLibrary = ref([])
 const productForm = reactive({
@@ -1070,6 +1276,28 @@ const sharedCartTotal = computed(() =>
 )
 const numberFormatter = new Intl.NumberFormat('zh-CN')
 const formatCount = (value) => numberFormatter.format(Math.max(0, Number(value) || 0))
+const padNumber = (value) => String(value).padStart(2, '0')
+const isTodayDate = (value) => {
+  if (!value) return false
+  const target = new Date(value)
+  if (Number.isNaN(target.getTime())) return false
+  const now = new Date()
+  return (
+    target.getFullYear() === now.getFullYear() &&
+    target.getMonth() === now.getMonth() &&
+    target.getDate() === now.getDate()
+  )
+}
+const formatDateLabel = (value) => {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const month = padNumber(date.getMonth() + 1)
+  const day = padNumber(date.getDate())
+  const hour = padNumber(date.getHours())
+  const minute = padNumber(date.getMinutes())
+  return `${month}-${day} ${hour}:${minute}`
+}
 const sharedCartSummary = computed(() =>
   sharedCartCount.value ? `共 ${sharedCartCount.value} 件 · ¥ ${sharedCartTotal.value.toFixed(2)}` : '购物车为空'
 )
@@ -1323,35 +1551,83 @@ const adminStoreCards = computed(() => {
   })
 })
 
-const adminCampaigns = computed(() => {
-  const memberCount = formatCount(adminOverview.value?.userCount ?? 0)
-  return [
-    {
-      type: '会员增长',
-      title: '好友裂变礼包',
-      desc: `触达 ${memberCount} 位会员，邀请好友解锁共享券包。`,
-      action: '生成海报'
-    },
-    {
-      type: '留存唤醒',
-      title: '7 日未下单自动提醒',
-      desc: '联合取餐提醒与优惠券，唤醒静默用户。',
-      action: '创建任务'
-    },
-    {
-      type: '权益运营',
-      title: '积分 iLab 企划',
-      desc: '上线新品试饮、积分兑换等会员权益。',
-      action: '配置权益'
+const adminMerchantTable = computed(() => {
+  if (!merchants.value.length) return []
+  const statusPresets = [
+    { label: '正常运营', class: 'success' },
+    { label: '待审核', class: 'pending' },
+    { label: '已停用', class: 'disabled' }
+  ]
+  return merchants.value.map((store, index) => {
+    const preset = statusPresets[index % statusPresets.length]
+    return {
+      id: store.id || `MER-${index + 1}`,
+      name: store.name || `门店 ${index + 1}`,
+      location: store.location || '地址待完善',
+      contact: store.manager || store.contact || store.owner || '联系人待补充',
+      status: preset.label,
+      statusClass: preset.class,
+      pending: Math.max(0, index % 3 === 0 ? 1 : 0)
     }
+  })
+})
+
+const adminDatasetSummary = computed(() => {
+  const catalog = productLibrary.value.length
+  const offline = productLibrary.value.filter((item) => item.available === false).length
+  const categoryCount = new Set(productLibrary.value.map((item) => item.category)).size || productCategories.length
+  return [
+    { key: 'catalog', label: '商品档案', value: `${catalog} 条`, desc: '供商家端调用' },
+    { key: 'pending', label: '待审核', value: `${offline} 条`, desc: '需管理员发布' },
+    { key: 'category', label: '分类标签', value: `${categoryCount} 个`, desc: '保持结构一致' }
   ]
 })
 
-const adminSettings = computed(() => [
-  { label: '角色权限模板', desc: '管理员 / 店员 / 顾客权限边界与审批流程', action: '配置模板' },
-  { label: '审计日志', desc: '追踪最近 7 日关键操作与配置变更', action: '查看日志' },
-  { label: '小程序消息模板', desc: '订单提醒、营销推送及客服通知', action: '管理模板' }
-])
+const adminDatasetTable = computed(() =>
+  productLibrary.value.slice(0, 6).map((item) => {
+    const label = productCategories.find((cat) => cat.value === item.category)?.label || '未分类'
+    const available = item.available !== false
+    return {
+      id: item.id,
+      name: item.name,
+      category: label,
+      price: Number(item.price || 0).toFixed(2),
+      status: available ? '已发布' : '待审核',
+      statusClass: available ? 'success' : 'pending'
+    }
+  })
+)
+
+const adminRoleTemplates = [
+  {
+    id: 'SUPER',
+    name: '平台管理员',
+    desc: '拥有所有数据、审批与权限配置能力',
+    scopes: ['商家管理', '数据审核', '权限配置']
+  },
+  {
+    id: 'AUDITOR',
+    name: '审核专员',
+    desc: '专注商品、内容、门店资料的审批',
+    scopes: ['数据审核', '门店审批', '日志查看']
+  },
+  {
+    id: 'SERVICE',
+    name: '客服协作',
+    desc: '可查看数据、导出报表，不可修改',
+    scopes: ['数据查看', '导出报表']
+  }
+]
+
+const adminAuditLogs = computed(() => {
+  const operator = currentUser.value?.displayName || currentUser.value?.username || '系统机器人'
+  return [
+    { id: 'LOG-001', module: '商家管理', action: '通过门店入驻申请', operator, time: '09:35', status: '成功' },
+    { id: 'LOG-002', module: '数据维护', action: '批量审核 5 条商品', operator, time: '11:10', status: '成功' },
+    { id: 'LOG-003', module: '权限', action: '调整审核专员权限', operator, time: '14:05', status: '成功' },
+    { id: 'LOG-004', module: '数据维护', action: '驳回异常素材', operator, time: '16:20', status: '待确认' }
+  ]
+})
 
 const merchantStatusLabel = computed(
   () => merchantStatusOptions.find((item) => item.value === merchantStatus.value)?.label || '正常营业'
@@ -1638,10 +1914,7 @@ const handleProfileAction = (key) => {
   }
 }
 
-const handleAdminShortcut = (topic) => {
-  const label = topic || '巡检任务'
-  adminCommandFeedback.value = `已触发「${label}」巡检任务，稍后在驾驶舱查看执行结果。`
-}
+const handleAdminShortcut = () => {}
 
 const slotLabel = (slot) => menuSlots.find((item) => item.value === slot)?.label || '全时段'
 const menuProgress = (item) => {
@@ -1929,6 +2202,30 @@ const announceStatus = () => {
   const message = `已发送「${merchantStatusLabel.value}」营业通知${note ? `：${note}` : ''}`
   setMerchantHomeNotice(message)
 }
+
+const handleMerchantRequestAction = async (request, action) => {
+  if (!request?.id) return
+  if (merchantRequestProcessing.value === request.id) return
+  merchantRequestProcessing.value = request.id
+  try {
+    if (action === 'approve') {
+      await approveMerchantRequest(request.id)
+      adminCommandFeedback.value = `已同意「${request.merchantName}」入驻申请`
+    } else {
+      await rejectMerchantRequest(request.id)
+      adminCommandFeedback.value = `已驳回「${request.merchantName}」入驻申请`
+    }
+    await loadMerchantRequests()
+  } catch (error) {
+    adminCommandFeedback.value =
+      error.response?.data?.message || (action === 'approve' ? '审批失败，请稍后重试' : '驳回失败，请稍后重试')
+  } finally {
+    merchantRequestProcessing.value = ''
+  }
+}
+
+const handleApproveMerchantRequest = (request) => handleMerchantRequestAction(request, 'approve')
+const handleRejectMerchantRequest = (request) => handleMerchantRequestAction(request, 'reject')
 
 const handleMerchantProfileAction = (key) => {
   switch (key) {
@@ -2338,13 +2635,19 @@ const submitAuth = async () => {
       if (registerRole.value === 'MERCHANT') {
         payload.merchantId = authForm.merchantId
       }
-      const session = await register(payload)
-      const user = applyAuthSession(session)
+      const response = await register(payload)
+      if (registerRole.value !== 'CUSTOMER') {
+        authFeedback.value = response?.message || '?????????????????'
+        authForm.password = ''
+        setAuthMode('login')
+        return
+      }
+      const user = applyAuthSession(response)
       if (user?.role) {
         loginRole.value = user.role
       }
       setAuthMode('login')
-      authFeedback.value = '???????????'
+      authFeedback.value = '?????????????'
       authForm.password = ''
       if (user) {
         await afterAuth(user)
@@ -2402,11 +2705,33 @@ const logout = () => {
   merchantBoard.ready = 0
   merchantBoard.completed = 0
   merchantBoard.orders = []
+  merchantRequests.value = []
+  merchantRequestsError.value = ''
+  merchantRequestProcessing.value = ''
 }
 
 const loadAdminResources = async () => {
   if (!isAdmin.value) return
   adminOverview.value = await fetchAdminOverview()
+}
+
+const loadMerchantRequests = async () => {
+  if (!isAdmin.value) return
+  merchantRequestsLoading.value = true
+  merchantRequestsError.value = ''
+  try {
+    const response = await fetchMerchantRequests()
+    const list = Array.isArray(response?.items)
+      ? response.items
+      : Array.isArray(response)
+        ? response
+        : response?.data || []
+    merchantRequests.value = list.map((item) => normalizeMerchantRequest(item))
+  } catch (error) {
+    merchantRequestsError.value = error.response?.data?.message || '加载商家申请失败，请稍后重试'
+  } finally {
+    merchantRequestsLoading.value = false
+  }
 }
 
 const loadMerchantBoard = async () => {
@@ -2444,9 +2769,17 @@ const loadSharedResources = async (merchantId = selectedMerchantId.value) => {
   }
 }
 
+const refreshMerchantsOnly = async () => {
+  try {
+    merchants.value = await fetchMerchants()
+  } catch (error) {
+    console.error('刷新门店列表失败', error)
+  }
+}
+
 const afterAuth = async (user) => {
   if (user.role === 'ADMIN') {
-    await loadAdminResources()
+    await Promise.all([loadAdminResources(), loadMerchantRequests()])
   }
   if (user.role === 'MERCHANT') {
     await loadMerchantBoard()
@@ -2595,9 +2928,12 @@ watch(
   () => currentUser.value?.role,
   async (role) => {
     if (role === 'ADMIN') {
-      await loadAdminResources()
+      await Promise.all([loadAdminResources(), loadMerchantRequests()])
     } else if (role === 'MERCHANT') {
       await loadMerchantBoard()
+    } else {
+      merchantRequests.value = []
+      merchantRequestsError.value = ''
     }
   }
 )
@@ -2608,6 +2944,10 @@ watch(
     adminActivePanel.value = adminPanels[0].key
     if (!flag) {
       adminCommandFeedback.value = ''
+      merchantRequests.value = []
+      merchantRequestsError.value = ''
+    } else {
+      loadMerchantRequests()
     }
   }
 )
@@ -2637,6 +2977,9 @@ onMounted(async () => {
     await loadSharedResources()
   } catch (error) {
     console.error('初始化数据失败', error)
+  }
+  if (isAdmin.value) {
+    await Promise.allSettled([loadAdminResources(), loadMerchantRequests()])
   }
 })
 </script>
@@ -2716,6 +3059,119 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.admin-explore-switch {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: rgba(15, 23, 42, 0.65);
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.admin-explore-switch button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: rgba(148, 163, 184, 0.85);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.admin-explore-switch button.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #e2e8f0;
+  box-shadow: inset 0 0 12px rgba(15, 23, 42, 0.3);
+}
+
+.admin-request-board {
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.75);
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+}
+
+.request-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.request-summary-card {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.5);
+  padding: 12px;
+}
+
+.request-summary-card strong {
+  font-size: 1.6rem;
+  display: block;
+}
+
+.request-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.request-list li {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.request-meta {
+  margin: 4px 0;
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.9rem;
+}
+
+.request-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.history-list {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.history-list ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.history-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.2);
+}
+
+.history-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .merchant-carousel-card,
@@ -3038,6 +3494,135 @@ onMounted(async () => {
   border: 1px solid rgba(148, 163, 184, 0.3);
   padding: 12px;
   background: rgba(15, 23, 42, 0.55);
+}
+
+.admin-table {
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.admin-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-table td strong {
+  display: block;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.table-actions .ghost {
+  padding: 8px 14px;
+  border-radius: 12px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.status-pill.success {
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #4ade80;
+}
+
+.status-pill.pending {
+  border-color: rgba(251, 191, 36, 0.6);
+  color: #facc15;
+}
+
+.status-pill.disabled {
+  border-color: rgba(148, 163, 184, 0.4);
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.permission-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.role-card {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.log-column {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.log-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.log-list li:last-child {
+  border-bottom: none;
+}
+
+.log-list p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.log-list small {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.log-column h3 {
+  margin: 0;
 }
 
 .panel.explore-panel {

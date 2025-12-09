@@ -79,3 +79,22 @@ export const updateMerchantProduct = (id, payload) =>
 
 export const deleteMerchantProduct = (id, merchantId) =>
   client.delete(`/merchant/products/${id}`, { params: { merchantId } })
+
+export const fetchMerchantRequests = (params = {}) =>
+  client.get('/admin/merchant-requests', { params }).then((res) => res.data)
+
+export const approveMerchantRequest = (id, payload = {}) =>
+  client.post(`/admin/merchant-requests/${id}/approve`, payload).then((res) => res.data)
+
+export const rejectMerchantRequest = (id, payload = {}) =>
+  client.post(`/admin/merchant-requests/${id}/reject`, payload).then((res) => res.data)
+
+export const fetchAdminUsers = (params = {}) => client.get('/admin/users', { params }).then((res) => res.data)
+export const createAdminUser = (payload) => client.post('/admin/users', payload).then((res) => res.data)
+export const updateAdminUser = (id, payload) => client.put(`/admin/users/${id}`, payload).then((res) => res.data)
+export const deleteAdminUser = (id) => client.delete(`/admin/users/${id}`).then((res) => res.data)
+
+export const fetchAdminMerchants = (params = {}) => client.get('/admin/merchants', { params }).then((res) => res.data)
+export const createAdminMerchant = (payload) => client.post('/admin/merchants', payload).then((res) => res.data)
+export const updateAdminMerchant = (id, payload) => client.put(`/admin/merchants/${id}`, payload).then((res) => res.data)
+export const deleteAdminMerchant = (id) => client.delete(`/admin/merchants/${id}`).then((res) => res.data)

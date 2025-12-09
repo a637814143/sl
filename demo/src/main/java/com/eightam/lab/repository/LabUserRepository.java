@@ -10,4 +10,6 @@ public interface LabUserRepository extends JpaRepository<LabUser, Long> {
     Optional<LabUser> findByUsername(String username);
 
     List<LabUser> findByRoleOrderByDisplayNameAsc(UserRole role);
+
+    long countByManagedMerchantId(Long merchantId);
 }

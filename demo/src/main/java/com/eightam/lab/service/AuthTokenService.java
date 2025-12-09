@@ -54,6 +54,14 @@ public class AuthTokenService {
         return principal;
     }
 
+    public AuthPrincipal requireAdmin(String authorizationHeader) {
+        AuthPrincipal principal = require(authorizationHeader);
+        if (principal.role != UserRole.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅管理员可以执行此操作");
+        }
+        return principal;
+    }
+
     private String extractToken(String authorizationHeader) {
         if (!StringUtils.hasText(authorizationHeader)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "é¡¹ç›®ä¼šè¯·æ±‚æ£€æµ‹åˆ°ç™»å½•è¯æ®");

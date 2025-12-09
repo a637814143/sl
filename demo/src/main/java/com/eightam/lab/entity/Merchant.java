@@ -58,19 +58,43 @@ public class Merchant {
         return contact;
     }
 
+    public void setContact(String contact) {
+        this.contact = contact;
+    }
+
     public String getLocation() {
         return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 
     public String getSignatureStory() {
         return signatureStory;
     }
 
+    public void setSignatureStory(String signatureStory) {
+        this.signatureStory = signatureStory;
+    }
+
     public Double getLatitude() {
         return latitude;
     }
 
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
     public Double getLongitude() {
         return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }

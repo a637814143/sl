@@ -16,4 +16,6 @@ public interface MerchantProductRepository extends JpaRepository<MerchantProduct
     Optional<MerchantProduct> findByIdAndMerchantId(Long id, Long merchantId);
 
     long countByProductId(Long productId);
+
+    long countByMerchantId(Long merchantId);
 }
