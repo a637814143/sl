@@ -1,6 +1,7 @@
 package com.eightam.lab.dto;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 public record MerchantOrderView(
         Long id,
@@ -10,6 +11,8 @@ public record MerchantOrderView(
         String pickupTime,
         LocalDateTime createdAt,
         String customerName,
-        String contactPhone
+        String contactPhone,
+        String customSummary,
+        Map<String, String> customizations
 ) {
 }

@@ -1,6 +1,9 @@
 package com.eightam.lab.entity;
 
+import com.eightam.lab.domain.product.ProductOptionSettings;
+import com.eightam.lab.entity.converter.ProductOptionSettingsConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -49,6 +52,10 @@ public class Product {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Convert(converter = ProductOptionSettingsConverter.class)
+    @Column(name = "option_config", columnDefinition = "TEXT")
+    private ProductOptionSettings optionSettings;
 
     @PrePersist
     public void onCreate() {
@@ -136,5 +143,13 @@ public class Product {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public ProductOptionSettings getOptionSettings() {
+        return optionSettings;
+    }
+
+    public void setOptionSettings(ProductOptionSettings optionSettings) {
+        this.optionSettings = optionSettings;
     }
 }

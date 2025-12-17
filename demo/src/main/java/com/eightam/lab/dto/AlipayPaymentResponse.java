@@ -6,6 +6,7 @@ public record AlipayPaymentResponse(
         String tradeNo,
         BigDecimal totalAmount,
         String payUrl,
-        int orderCount
+        int orderCount,
+        String payPageHtml
 ) {
 }

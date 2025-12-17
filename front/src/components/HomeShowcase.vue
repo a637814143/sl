@@ -1,15 +1,21 @@
 <template>
   <section class="home-showcase">
     <div class="hero" @mouseenter="stopSlide" @mouseleave="startSlide">
-      <div v-for="(slide, idx) in heroSlides" :key="slide.title" v-show="idx === activeSlide">
-        <p class="hero-tag">{{ slide.tag }}</p>
+      <div
+        v-for="(slide, idx) in heroSlides"
+        :key="slide.id || slide.title || idx"
+        v-show="idx === activeSlide"
+        class="hero-slide"
+        :style="heroBannerStyle(slide)"
+      >
+        <p class="hero-tag" v-if="slide.tag">{{ slide.tag }}</p>
         <h2>{{ slide.title }}</h2>
         <p class="hero-sub">{{ slide.subtitle }}</p>
       </div>
       <div class="hero-dots">
         <button
           v-for="(slide, idx) in heroSlides"
-          :key="`dot-${idx}`"
+          :key="slide.id || `dot-${idx}`"
           :class="{ active: idx === activeSlide }"
           type="button"
           @click="setSlide(idx)"
@@ -163,6 +169,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 const props = defineProps({
   drinks: { type: Array, default: () => [] },
+  banners: { type: Array, default: () => [] },
   cartItems: { type: Array, default: null },
   cartTotal: { type: Number, default: null },
   addToCart: { type: Function, default: null },
@@ -172,11 +179,49 @@ const props = defineProps({
 })
 const emit = defineEmits(['checkout'])
 
-const heroSlides = [
-  { tag: '经典推荐', title: '焦糖燕麦拿铁', subtitle: '丝滑燕麦奶搭配焦糖香气，顺口醇厚。' },
-  { tag: '季节限定', title: '芝芝龙井气泡', subtitle: '龙井茶与清爽气泡叠加，入口非常轻盈。' },
-  { tag: '手作甜品', title: '红茶无花果巴斯克', subtitle: '锡兰红茶与蜜渍无花果的双重香气。' }
+const fallbackImages = [
+  'https://images.unsplash.com/photo-1504753793650-d4a2b783c15f?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1505253399886-34b28f31c15f?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=600&q=80'
 ]
+
+const fallbackHeroSlides = [
+  {
+    id: 'fallback-hero',
+    tag: '今日灵感',
+    title: '当日推荐',
+    subtitle: '门店实时同步，灵感随时刷新。',
+    imageUrl: fallbackImages[0]
+  },
+  {
+    id: 'fallback-signature',
+    tag: '门店特调',
+    title: '主理人调配',
+    subtitle: '根据天气与客流调整配方，让熟客也有惊喜。',
+    imageUrl: fallbackImages[1]
+  },
+  {
+    id: 'fallback-dessert',
+    tag: '甜品现烤',
+    title: '手作甜品档',
+    subtitle: '每日小批量现烤，售完即止。',
+    imageUrl: fallbackImages[2]
+  }
+]
+
+const heroSlides = computed(() => {
+  const source = Array.isArray(props.banners) ? props.banners : []
+  if (source.length) {
+    return source.map((banner, index) => ({
+      id: banner.id || `merchant-banner-${index}`,
+      tag: `NO.${String(index + 1).padStart(2, '0')}`,
+      title: banner.caption || `门店推荐 ${index + 1}`,
+      subtitle: '门店实时更新，滑动查看更多。',
+      imageUrl: banner.imageUrl || fallbackImages[index % fallbackImages.length]
+    }))
+  }
+  return fallbackHeroSlides
+})
 
 const navItems = [
   { label: '甜品', value: 'DESSERT', icon: '🍰' },
@@ -185,132 +230,111 @@ const navItems = [
   { label: '特调', value: 'SIGNATURE', icon: '🧪' }
 ]
 
-const dessertList = [
-  {
-    id: 'fig-basque',
-    name: '红茶无花果巴斯克',
-    description: '蜜渍无花果搭配锡兰红茶，冷藏后口感更丝滑。',
-    price: 48,
-    category: 'DESSERT',
-    image:
-      'https://images.unsplash.com/photo-1504753793650-d4a2b783c15f?auto=format&fit=crop&w=600&q=80',
-    tag: '限量'
-  },
-  {
-    id: 'choco-basque',
-    name: '迪拜巧克力巴斯克',
-    description: '70% 黑巧融合椰枣糖浆，入口柔软又醇厚。',
-    price: 52,
-    category: 'DESSERT',
-    image:
-      'https://images.unsplash.com/photo-1505253399886-34b28f31c15f?auto=format&fit=crop&w=600&q=80',
-    tag: '人气'
-  }
+const sugarOptionPresets = [
+  { value: 'seven', label: '店主推荐' },
+  { value: 'five', label: '半糖' },
+  { value: 'zero', label: '无糖' }
 ]
+const sugarOptionHints = {
+  seven: '遵循店主配比，风味最平衡',
+  five: '减少糖量，保留配方原味',
+  zero: '完全不额外加糖，清爽顺口'
+}
+const tablewareOptionPresets = [
+  { value: 'one', label: '1份' },
+  { value: 'two', label: '2份' },
+  { value: 'none', label: '不需要' }
+]
+const tablewareOptionHints = {
+  one: '适合单人享用',
+  two: '两人分享更方便',
+  none: '无需附带餐具'
+}
+const pourOptionPresets = [
+  { value: 'show', label: '需要现场演示' },
+  { value: 'skip', label: '不需要演示' }
+]
+const pourOptionHints = {
+  show: '店主现场冲煮并讲解工艺',
+  skip: '直接出杯，节省时间'
+}
 
-const guideLibrary = {
-  CLASSIC: [
-    {
-      key: 'size',
-      label: '选择杯型',
-      hint: '不同容量会影响浓度',
-      options: [
-        { value: 'medium', label: '中杯 360ml', desc: '日常提神，口味最均衡' },
-        { value: 'large', label: '大杯 480ml', desc: '适合分享或长时间外带' }
-      ],
-      default: 'medium'
-    },
-    {
-      key: 'temperature',
-      label: '温度偏好',
-      hint: '温度会影响香气释放',
-      options: [
-        { value: 'hot', label: '热饮 65°C', desc: '现萃热饮，建议搭配全脂奶' },
-        { value: 'iced', label: '冰饮 8°C', desc: '冰块 40%，更清爽' }
-      ],
-      default: 'hot'
-    },
-    {
-      key: 'sweetness',
-      label: '甜度',
-      options: [
-        { value: 'regular', label: '标准甜', desc: '保留原配方风味' },
-        { value: 'less', label: '少糖', desc: '降低 30% 糖浆' }
-      ],
-      default: 'regular'
-    }
-  ],
-  SIGNATURE: [
-    {
-      key: 'craft',
-      label: '制作方式',
-      options: [
-        { value: 'coldbrew', label: '冷萃', desc: '12 小时慢萃，口感柔顺' },
-        { value: 'nitro', label: '氮气注入', desc: '营造更绵密泡沫层' }
-      ],
-      default: 'coldbrew'
-    },
-    {
-      key: 'finish',
-      label: '收尾装饰',
-      options: [
-        { value: 'citrus', label: '柑橘皮', desc: '突出果酸与清香' },
-        { value: 'cacao', label: '可可碎', desc: '口感更厚重' }
-      ],
-      default: 'citrus'
-    }
-  ],
-  POUR: [
-    {
-      key: 'roast',
-      label: '豆子烘焙',
-      options: [
-        { value: 'light', label: '浅焙', desc: '花香、果香更明显' },
-        { value: 'medium', label: '中焙', desc: '坚果与巧克力风味' }
-      ],
-      default: 'light'
-    },
-    {
-      key: 'milk',
-      label: '是否加奶',
-      options: [
-        { value: 'pure', label: '不加奶', desc: '保留原豆风味' },
-        { value: 'oat', label: '燕麦奶', desc: '顺滑口感，植物基' }
-      ],
-      default: 'pure'
-    }
-  ],
-  DESSERT: [
-    {
-      key: 'portion',
-      label: '份量',
-      options: [
-        { value: 'whole', label: '整块', desc: '适合 2-3 人分享' },
-        { value: 'slice', label: '切片', desc: '单人享用更方便' }
-      ],
-      default: 'slice'
-    },
-    {
-      key: 'pack',
-      label: '打包方式',
-      options: [
-        { value: 'plate', label: '堂食餐盘', desc: '立即享用口感最佳' },
-        { value: 'chill', label: '冷藏盒装', desc: '随单附赠保冷袋' }
-      ],
-      default: 'plate'
-    }
-  ],
-  DEFAULT: [
-    {
-      key: 'preference',
-      label: '体验侧重',
-      options: [
-        { value: 'balanced', label: '标准风味', desc: '遵循门店配比' },
-        { value: 'bold', label: '强调风味', desc: '加强主体风味表现' }
-      ],
-      default: 'balanced'
-    }
-  ]
+const normalizedCategory = (value) => String(value || '').toUpperCase()
+const buildGuideOptions = (presets, hints, settingsGroup) => {
+  const savedOptions = settingsGroup?.options || []
+  let visible = presets
+    .map((preset) => {
+      const saved = savedOptions.find((item) => item.value === preset.value)
+      const showOption = saved ? saved.visible !== false : true
+      if (!showOption) return null
+      return {
+        value: preset.value,
+        label: preset.label,
+        desc: hints[preset.value]
+      }
+    })
+    .filter(Boolean)
+  if (!visible.length) {
+    visible = presets.map((preset) => ({
+      value: preset.value,
+      label: preset.label,
+      desc: hints[preset.value]
+    }))
+  }
+  const defaultValue = visible.some((item) => item.value === settingsGroup?.defaultValue)
+    ? settingsGroup?.defaultValue
+    : visible[0]?.value
+  return { options: visible, defaultValue }
+}
+
+const createGuideGroup = (key, label, hint, presets, hints, settingsGroup) => {
+  if (settingsGroup && settingsGroup.enabled === false) {
+    return null
+  }
+  const { options, defaultValue } = buildGuideOptions(presets, hints, settingsGroup)
+  if (!options.length) return null
+  return {
+    key,
+    label,
+    hint,
+    options,
+    default: defaultValue
+  }
+}
+
+const buildGuideForProduct = (product = {}) => {
+  const category = normalizedCategory(product.category)
+  if (category === 'DESSERT') {
+    const group = createGuideGroup(
+      'tableware',
+      '餐具数量',
+      '根据分享人数附带餐具',
+      tablewareOptionPresets,
+      tablewareOptionHints,
+      product.optionSettings?.tableware
+    )
+    return group ? [group] : []
+  }
+  if (category === 'POUR') {
+    const group = createGuideGroup(
+      'pourDemo',
+      '手冲演示',
+      '手冲艺术，是否需要当面演示制作',
+      pourOptionPresets,
+      pourOptionHints,
+      product.optionSettings?.pourDemo
+    )
+    return group ? [group] : []
+  }
+  const sugarGroup = createGuideGroup(
+    'sugar',
+    '糖度偏好',
+    '标准为店主推荐，可按口味调整',
+    sugarOptionPresets,
+    sugarOptionHints,
+    product.optionSettings?.sugar
+  )
+  return sugarGroup ? [sugarGroup] : []
 }
 
 const customization = reactive({
@@ -337,24 +361,27 @@ const preparedDrinks = computed(() =>
     name: drink.name ?? `灵感饮品 ${index + 1}`,
     description: drink.description ?? '这杯饮品正在等待你来定义故事。',
     price: Number(drink.price || 0),
-    image: drink.imageUrl || dessertList[index % dessertList.length].image,
+    image: drink.imageUrl || fallbackImages[index % fallbackImages.length],
     category: String(drink.category || '').toUpperCase(),
-    tag: drink.tag
+    tag: drink.tag,
+    unitLabel: drink.unitLabel
   }))
 )
 
 const catalog = computed(() => {
-  const collections = { CLASSIC: [], SIGNATURE: [], POUR: [] }
+  const collections = navItems.reduce((map, item) => {
+    map[item.value] = []
+    return map
+  }, {})
   preparedDrinks.value.forEach((item) => {
     const key = collections[item.category] ? item.category : 'CLASSIC'
+    collections[key] = collections[key] || []
     collections[key].push(item)
   })
   return collections
 })
 
-const currentProducts = computed(() =>
-  activeCategory.value === 'DESSERT' ? dessertList : catalog.value[activeCategory.value] || []
-)
+const currentProducts = computed(() => catalog.value[activeCategory.value] || [])
 
 const cartItems = computed(() =>
   Array.isArray(props.cartItems) ? props.cartItems : Object.values(internalCart)
@@ -370,6 +397,12 @@ const cartTotal = computed(() => {
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0
   )
+})
+
+const heroBannerStyle = (slide) => ({
+  backgroundImage: slide?.imageUrl
+    ? `linear-gradient(180deg, rgba(15,23,42,0.1), rgba(2,6,23,0.75)), url(${slide.imageUrl})`
+    : 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(2,6,23,0.85))'
 })
 
 const coverStyle = (image) => ({
@@ -429,13 +462,20 @@ const mutateLocalCart = (source, delta, meta = {}) => {
 }
 
 const setSlide = (idx) => {
-  activeSlide.value = idx
+  const total = heroSlides.value.length
+  if (!total) return
+  const normalized = Math.max(0, Math.min(idx, total - 1))
+  activeSlide.value = normalized
 }
 
 const startSlide = () => {
   stopSlide()
+  const total = heroSlides.value.length
+  if (!total) return
   slideTimer.value = setInterval(() => {
-    activeSlide.value = (activeSlide.value + 1) % heroSlides.length
+    const size = heroSlides.value.length
+    if (!size) return
+    activeSlide.value = (activeSlide.value + 1) % size
   }, 4000)
 }
 
@@ -452,7 +492,7 @@ const selectCategory = (value) => {
 
 const resolveGuide = (product = {}) => {
   const category = product.category || activeCategory.value
-  return product.guide || guideLibrary[category] || guideLibrary.DEFAULT
+  return product.guide || buildGuideForProduct({ ...product, category })
 }
 
 const initSelections = (groups = []) => {
@@ -503,6 +543,15 @@ const dispatchCartPayload = (payload) => {
 const openCustomization = (product) => {
   if (!product) return
   const guide = resolveGuide(product)
+  if (!guide.length) {
+    const payload = buildPayload(product, {
+      quantity: 1,
+      customizations: null,
+      customSummary: ''
+    })
+    dispatchCartPayload(payload)
+    return
+  }
   customization.product = product
   customization.groups = guide
   customization.selections = initSelections(guide)
@@ -588,6 +637,15 @@ const updateDevice = () => {
   }
 }
 
+watch(
+  () => props.banners,
+  () => {
+    activeSlide.value = 0
+    startSlide()
+  },
+  { deep: true }
+)
+
 watch(cartItems, (items) => {
   if (!items.length) {
     cartOpen.value = false
@@ -620,32 +678,23 @@ onUnmounted(() => {
 
 .hero {
   border-radius: 32px;
-  padding: clamp(28px, 5vw, 64px);
-  background: radial-gradient(circle at 20% 20%, rgba(15, 23, 42, 0.45), transparent 55%),
-    linear-gradient(135deg, rgba(59, 130, 246, 0.65), rgba(14, 165, 233, 0.5));
   position: relative;
   overflow: hidden;
+  min-height: clamp(280px, 46vw, 460px);
+  box-shadow: 0 40px 80px rgba(15, 23, 42, 0.45);
+  isolation: isolate;
+  background: #0f172a;
+}
+
+.hero-slide {
+  padding: clamp(28px, 5vw, 64px);
   min-height: clamp(280px, 46vw, 460px);
   display: grid;
   align-content: center;
   gap: 12px;
-  box-shadow: 0 40px 80px rgba(15, 23, 42, 0.45);
-  isolation: isolate;
-}
-
-.hero::before,
-.hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 75% 20%, rgba(248, 250, 252, 0.35), transparent 45%);
-  mix-blend-mode: screen;
-  opacity: 0.85;
-  z-index: -1;
-}
-
-.hero::after {
-  background: radial-gradient(circle at 85% 80%, rgba(236, 72, 153, 0.6), transparent 50%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .hero h2 {

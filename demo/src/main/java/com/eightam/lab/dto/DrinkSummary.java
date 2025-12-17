@@ -1,5 +1,6 @@
 package com.eightam.lab.dto;
 
+import com.eightam.lab.domain.product.ProductOptionSettings;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 
@@ -20,6 +21,7 @@ public record DrinkSummary(
         Integer dailyStockLimit,
         Integer availableStock,
         LocalTime availableStart,
-        LocalTime availableEnd
+        LocalTime availableEnd,
+        ProductOptionSettings optionSettings
 ) {
 }

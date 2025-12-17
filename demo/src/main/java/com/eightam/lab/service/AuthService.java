@@ -1,5 +1,6 @@
 package com.eightam.lab.service;
 
+import com.eightam.lab.domain.loyalty.MembershipTier;
 import com.eightam.lab.dto.LoginRequest;
 import com.eightam.lab.dto.RegisterRequest;
 import com.eightam.lab.entity.LabUser;
@@ -39,6 +40,7 @@ public class AuthService {
         user.setUsername(request.getUsername());
         user.setDisplayName(request.getDisplayName());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setMembershipLevel(MembershipTier.EXPERIENCE.getCode());
         UserRole role;
         try {
             role = request.resolveRole();

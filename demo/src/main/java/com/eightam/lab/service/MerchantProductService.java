@@ -1,5 +1,6 @@
 package com.eightam.lab.service;
 
+import com.eightam.lab.domain.product.ProductOptionSettings;
 import com.eightam.lab.dto.DrinkSummary;
 import com.eightam.lab.dto.MerchantProductRequest;
 import com.eightam.lab.entity.Merchant;
@@ -10,6 +11,7 @@ import com.eightam.lab.repository.MerchantRepository;
 import com.eightam.lab.repository.ProductRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,8 +95,10 @@ public class MerchantProductService {
         product.setDescription(request.getDescription());
         product.setImageUrl(request.getImageUrl());
         product.setFlavorProfile(request.getFlavorProfile());
-        product.setCategory(request.getCategory());
+        String normalizedCategory = normalizeCategory(request.getCategory());
+        product.setCategory(normalizedCategory);
         product.setActive(request.getAvailable() == null || request.getAvailable());
+        product.setOptionSettings(ProductOptionSettings.prepareForCategory(normalizedCategory, request.getOptionSettings()));
     }
 
     private void applyMerchantProduct(MerchantProduct merchantProduct, MerchantProductRequest request) {
@@ -122,5 +126,12 @@ public class MerchantProductService {
             merchantProduct.setProduct(product);
         }
         return product;
+    }
+
+    private String normalizeCategory(String category) {
+        if (!StringUtils.hasText(category)) {
+            return "CLASSIC";
+        }
+        return category.trim().toUpperCase(Locale.ROOT);
     }
 }

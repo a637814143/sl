@@ -1,5 +1,6 @@
 package com.eightam.lab.dto;
 
+import com.eightam.lab.domain.product.ProductOptionSettings;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -41,6 +42,8 @@ public class MerchantProductRequest {
     private LocalTime availableEnd;
 
     private Boolean available;
+
+    private ProductOptionSettings optionSettings;
 
     public Long getMerchantId() {
         return merchantId;
@@ -136,5 +139,13 @@ public class MerchantProductRequest {
 
     public void setAvailable(Boolean available) {
         this.available = available;
+    }
+
+    public ProductOptionSettings getOptionSettings() {
+        return optionSettings;
+    }
+
+    public void setOptionSettings(ProductOptionSettings optionSettings) {
+        this.optionSettings = optionSettings;
     }
 }

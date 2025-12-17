@@ -47,24 +47,30 @@
                 <footer>
                   <div class="price-block">
                     <span>¥ {{ Number(item.price || 0).toFixed(2) }}</span>
-                    <span
-                      v-if="isMerchantMode"
-                      :class="['availability-chip', { offline: item.available === false }]"
-                    >
-                      {{ item.available === false ? '已下架' : '在售' }}
+                    <span :class="['availability-chip', { offline: item.available === false }]">
+                      {{ availabilityLabel(item) }}
                     </span>
                   </div>
-                  <div v-if="isMerchantMode" class="card-actions">
-                    <button type="button" class="card-btn" @click="handleEdit(item)">编辑</button>
-                    <button type="button" class="card-btn danger" @click="handleDelete(item)">删除</button>
+                  <small class="remaining-info">剩余 {{ formatRemaining(item) }} {{ unitLabel(item) }}</small>
+                  <div v-if="isMerchantMode" class="merchant-actions">
+                    <button type="button" class="merchant-action" @click="handleEdit(item)">
+                      <span class="action-icon">编</span>
+                      <span>编辑</span>
+                    </button>
+                    <button type="button" class="merchant-action danger" @click="handleDelete(item)">
+                      <span class="action-icon">删</span>
+                      <span>删除</span>
+                    </button>
                   </div>
                   <button
                     v-else
                     type="button"
+                    class="quick-add"
+                    :disabled="!canPurchase(item)"
                     @click="addToCart({ ...item, category: section.value })"
                     aria-label="加入灵感单"
                   >
-                    +
+                    {{ canPurchase(item) ? '+' : '×' }}
                   </button>
                 </footer>
               </div>
@@ -81,7 +87,7 @@
         <header>
           <div>
             <h3>已选商品</h3>
-            <small>¥ {{ cartTotal.toFixed(2) }}</small>
+            <small>{{ cartSummaryText }}</small>
           </div>
           <button class="ghost" type="button" @click="clearCart">清空</button>
         </header>
@@ -176,6 +182,7 @@ const props = defineProps({
   initialCategory: { type: String, default: 'CLASSIC' },
   cartItems: { type: Array, default: null },
   cartTotal: { type: Number, default: null },
+  cartSummary: { type: String, default: null },
   addToCart: { type: Function, default: null },
   incrementItem: { type: Function, default: null },
   decrementItem: { type: Function, default: null },
@@ -218,109 +225,112 @@ const navItems = [
   }
 ]
 
-const guideLibrary = {
-  CLASSIC: [
-    {
-      key: 'size',
-      label: '选择杯型',
-      hint: '不同容量会影响浓度',
-      options: [
-        { value: 'medium', label: '中杯 360ml', desc: '日常提神，口味最均衡' },
-        { value: 'large', label: '大杯 480ml', desc: '适合分享或长时间外带' }
-      ],
-      default: 'medium'
-    },
-    {
-      key: 'temperature',
-      label: '温度偏好',
-      hint: '温度会影响香气释放',
-      options: [
-        { value: 'hot', label: '热饮 65°C', desc: '现萃热饮，建议搭配全脂奶' },
-        { value: 'iced', label: '冰饮 8°C', desc: '冰块 40%，更清爽' }
-      ],
-      default: 'hot'
-    },
-    {
-      key: 'sweetness',
-      label: '甜度',
-      options: [
-        { value: 'regular', label: '标准甜', desc: '保留原配方风味' },
-        { value: 'less', label: '少糖', desc: '降低 30% 糖浆' }
-      ],
-      default: 'regular'
-    }
-  ],
-  SIGNATURE: [
-    {
-      key: 'craft',
-      label: '制作方式',
-      options: [
-        { value: 'coldbrew', label: '冷萃', desc: '12 小时慢萃，口感柔顺' },
-        { value: 'nitro', label: '氮气注入', desc: '营造更绵密泡沫层' }
-      ],
-      default: 'coldbrew'
-    },
-    {
-      key: 'finish',
-      label: '收尾装饰',
-      options: [
-        { value: 'citrus', label: '柑橘皮', desc: '突出果酸与清香' },
-        { value: 'cacao', label: '可可碎', desc: '口感更厚重' }
-      ],
-      default: 'citrus'
-    }
-  ],
-  POUR: [
-    {
-      key: 'roast',
-      label: '豆子烘焙',
-      options: [
-        { value: 'light', label: '浅焙', desc: '花香、果香更明显' },
-        { value: 'medium', label: '中焙', desc: '坚果与巧克力风味' }
-      ],
-      default: 'light'
-    },
-    {
-      key: 'milk',
-      label: '是否加奶',
-      options: [
-        { value: 'pure', label: '不加奶', desc: '保留原豆风味' },
-        { value: 'oat', label: '燕麦奶', desc: '顺滑口感，植物基' }
-      ],
-      default: 'pure'
-    }
-  ],
-  DESSERT: [
-    {
-      key: 'portion',
-      label: '份量',
-      options: [
-        { value: 'whole', label: '整块', desc: '适合 2-3 人分享' },
-        { value: 'slice', label: '切片', desc: '单人享用更方便' }
-      ],
-      default: 'slice'
-    },
-    {
-      key: 'pack',
-      label: '打包方式',
-      options: [
-        { value: 'plate', label: '堂食餐盘', desc: '立即享用口感最佳' },
-        { value: 'chill', label: '冷藏盒装', desc: '随单附赠保冷袋' }
-      ],
-      default: 'plate'
-    }
-  ],
-  DEFAULT: [
-    {
-      key: 'preference',
-      label: '体验侧重',
-      options: [
-        { value: 'balanced', label: '标准风味', desc: '遵循门店配比' },
-        { value: 'bold', label: '强调风味', desc: '加强主体风味表现' }
-      ],
-      default: 'balanced'
-    }
-  ]
+
+const sugarOptionPresets = [
+  { value: 'seven', label: '店主推荐' },
+  { value: 'five', label: '半糖' },
+  { value: 'zero', label: '无糖' }
+]
+const sugarOptionHints = {
+  seven: '遵循店主配比，风味最平衡',
+  five: '减少糖量，保留配方原味',
+  zero: '完全不额外加糖，清爽顺口'
+}
+const tablewareOptionPresets = [
+  { value: 'one', label: '1份' },
+  { value: 'two', label: '2份' },
+  { value: 'none', label: '不需要' }
+]
+const tablewareOptionHints = {
+  one: '适合单人享用',
+  two: '两人分享更方便',
+  none: '无需附带餐具'
+}
+const pourOptionPresets = [
+  { value: 'show', label: '需要现场演示' },
+  { value: 'skip', label: '不需要演示' }
+]
+const pourOptionHints = {
+  show: '店主现场冲煮并讲解工艺',
+  skip: '直接出杯，节省时间'
+}
+
+const normalizedCategory = (value) => String(value || '').toUpperCase()
+const buildGuideOptions = (presets, hints, settingsGroup) => {
+  const savedOptions = settingsGroup?.options || []
+  let visible = presets
+    .map((preset) => {
+      const saved = savedOptions.find((item) => item.value === preset.value)
+      const showOption = saved ? saved.visible !== false : true
+      if (!showOption) return null
+      return {
+        value: preset.value,
+        label: preset.label,
+        desc: hints[preset.value]
+      }
+    })
+    .filter(Boolean)
+  if (!visible.length) {
+    visible = presets.map((preset) => ({
+      value: preset.value,
+      label: preset.label,
+      desc: hints[preset.value]
+    }))
+  }
+  const defaultValue = visible.some((item) => item.value === settingsGroup?.defaultValue)
+    ? settingsGroup?.defaultValue
+    : visible[0]?.value
+  return { options: visible, defaultValue }
+}
+
+const createGuideGroup = (key, label, hint, presets, hints, settingsGroup) => {
+  if (settingsGroup && settingsGroup.enabled === false) {
+    return null
+  }
+  const { options, defaultValue } = buildGuideOptions(presets, hints, settingsGroup)
+  if (!options.length) return null
+  return {
+    key,
+    label,
+    hint,
+    options,
+    default: defaultValue
+  }
+}
+
+const buildGuideForProduct = (product = {}) => {
+  const category = normalizedCategory(product.category)
+  if (category === 'DESSERT') {
+    const group = createGuideGroup(
+      'tableware',
+      '餐具数量',
+      '根据分享人数附带餐具',
+      tablewareOptionPresets,
+      tablewareOptionHints,
+      product.optionSettings?.tableware
+    )
+    return group ? [group] : []
+  }
+  if (category === 'POUR') {
+    const group = createGuideGroup(
+      'pourDemo',
+      '手冲演示',
+      '手冲艺术，是否需要当面演示制作',
+      pourOptionPresets,
+      pourOptionHints,
+      product.optionSettings?.pourDemo
+    )
+    return group ? [group] : []
+  }
+  const sugarGroup = createGuideGroup(
+    'sugar',
+    '糖度偏好',
+    '标准为店主推荐，可按口味调整',
+    sugarOptionPresets,
+    sugarOptionHints,
+    product.optionSettings?.sugar
+  )
+  return sugarGroup ? [sugarGroup] : []
 }
 
 const customization = reactive({
@@ -338,9 +348,18 @@ const isMobile = ref(false)
 const decoratedDrinks = computed(() =>
   (Array.isArray(props.drinks) ? props.drinks : []).map((drink, index) => ({ drink, index }))
 )
-const filteredDrinks = computed(() =>
-  decoratedDrinks.value.filter(({ drink }) => isMerchantMode.value || drink.available !== false)
+const sortedDrinks = computed(() =>
+  decoratedDrinks.value.slice().sort((a, b) => {
+    const aAvailable = a.drink.available !== false
+    const bAvailable = b.drink.available !== false
+    if (aAvailable !== bAvailable) return aAvailable ? -1 : 1
+    const aRemain = Number(a.drink.remaining ?? 0)
+    const bRemain = Number(b.drink.remaining ?? 0)
+    if (aRemain !== bRemain) return bRemain - aRemain
+    return a.index - b.index
+  })
 )
+const filteredDrinks = computed(() => sortedDrinks.value)
 
 const resolveCategory = (drink, index) => {
   const explicit = String(drink.category || drink.type || '').toUpperCase()
@@ -370,6 +389,15 @@ const cartCount = computed(() => {
   if (isMerchantMode.value) return 0
   return cartItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 })
+
+const formatRemaining = (item) => Math.max(Number(item.remaining ?? 0), 0)
+const unitLabel = (item) =>
+  String(item?.category || '').toUpperCase() === 'DESSERT' ? '份' : item?.unitLabel || '杯'
+const availabilityLabel = (item) => {
+  if (item.available === false || formatRemaining(item) <= 0) return '已下架'
+  return `在售 · 剩余 ${formatRemaining(item)} ${unitLabel(item)}`
+}
+const canPurchase = (item) => item.available !== false && formatRemaining(item) > 0
 const cartTotal = computed(() => {
   if (isMerchantMode.value) return 0
   if (Array.isArray(props.cartItems) && typeof props.cartTotal === 'number') {
@@ -379,6 +407,16 @@ const cartTotal = computed(() => {
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0
   )
+})
+
+const cartSummaryText = computed(() => {
+  if (typeof props.cartSummary === 'string' && props.cartSummary.trim()) {
+    return props.cartSummary
+  }
+  if (!cartItems.value.length) {
+    return '购物车为空'
+  }
+  return `共 ${cartCount.value} 件 · ￥ ${cartTotal.value.toFixed(2)}`
 })
 
 const coverStyle = (image) => ({
@@ -407,8 +445,8 @@ const setCategory = (value) => {
 }
 
 const resolveGuide = (product = {}) => {
-  const category = product.category || activeCategory.value
-  return product.guide || guideLibrary[category] || guideLibrary.DEFAULT
+  const fallbackCategory = product.category || activeCategory.value
+  return product.guide || buildGuideForProduct({ ...product, category: fallbackCategory })
 }
 
 const initSelections = (groups = []) => {
@@ -469,6 +507,15 @@ const handleDelete = (item) => {
 const openCustomization = (product) => {
   if (!product) return
   const guide = resolveGuide(product)
+  if (!guide.length) {
+    const payload = buildPayload(product, {
+      quantity: 1,
+      customizations: null,
+      customSummary: ''
+    })
+    dispatchCartPayload(payload)
+    return
+  }
   customization.product = product
   customization.groups = guide
   customization.selections = initSelections(guide)
@@ -735,6 +782,8 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .price-block {
@@ -756,7 +805,14 @@ onUnmounted(() => {
   color: #fecdd3;
 }
 
-.info footer button {
+.remaining-info {
+  display: block;
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.info footer .quick-add {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -766,24 +822,53 @@ onUnmounted(() => {
   font-size: 1.2rem;
 }
 
-.card-actions {
+.info footer .quick-add:disabled {
+  background: rgba(51, 65, 85, 0.5);
+  color: rgba(148, 163, 184, 0.8);
+  cursor: not-allowed;
+}
+
+.merchant-actions {
   display: inline-flex;
   gap: 8px;
-  flex-wrap: wrap;
   justify-content: flex-end;
+  margin-left: auto;
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 
-.card-btn {
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  border-radius: 18px;
-  padding: 6px 12px;
-  background: transparent;
+.merchant-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.55);
   color: #e2e8f0;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
 }
 
-.card-btn.danger {
-  border-color: rgba(248, 113, 113, 0.8);
+.merchant-action .action-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}
+
+.merchant-action.danger {
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fecdd3;
+}
+
+.merchant-action.danger .action-icon {
+  background: rgba(248, 113, 113, 0.18);
   color: #fecdd3;
 }
 

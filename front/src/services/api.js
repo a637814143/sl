@@ -12,10 +12,26 @@ const resolveBaseURL = () => {
   return 'http://localhost:8080/api'
 }
 
+const apiBaseURL = resolveBaseURL()
+
 const client = axios.create({
-  baseURL: resolveBaseURL(),
+  baseURL: apiBaseURL,
   timeout: 8000
 })
+
+const apiOrigin = (() => {
+  try {
+    const url = new URL(apiBaseURL, typeof window !== 'undefined' ? window.location.href : undefined)
+    return `${url.protocol}//${url.host}`
+  } catch {
+    if (typeof window !== 'undefined' && window.location) {
+      return `${window.location.protocol}//${window.location.host}`
+    }
+    return ''
+  }
+})()
+
+export const getApiOrigin = () => apiOrigin
 
 client.interceptors.request.use((config) => {
   if (authToken) {
@@ -49,6 +65,8 @@ export const updateMerchantOrderStatus = (merchantId, orderId, status) =>
 export const fetchCatalogDrinks = (params = {}) =>
   client.get('/drinks', { params }).then((res) => res.data)
 export const fetchMerchants = () => client.get('/merchants').then((res) => res.data)
+export const fetchMerchantBanners = (merchantId) =>
+  client.get(`/merchants/${merchantId}/banners`).then((res) => res.data)
 export const createOrder = (payload) => client.post('/orders', payload).then((res) => res.data)
 export const fetchOrderOverview = () => client.get('/orders/overview').then((res) => res.data)
 export const createAlipayPayment = (payload) => client.post('/payments/alipay', payload).then((res) => res.data)
@@ -79,6 +97,11 @@ export const updateMerchantProduct = (id, payload) =>
 
 export const deleteMerchantProduct = (id, merchantId) =>
   client.delete(`/merchant/products/${id}`, { params: { merchantId } })
+
+export const listMerchantBanners = () => client.get('/merchant/banners').then((res) => res.data)
+export const createMerchantBanner = (payload) =>
+  client.post('/merchant/banners', payload).then((res) => res.data)
+export const deleteMerchantBanner = (id) => client.delete(`/merchant/banners/${id}`).then((res) => res.data)
 
 export const fetchMerchantRequests = (params = {}) =>
   client.get('/admin/merchant-requests', { params }).then((res) => res.data)

@@ -4,19 +4,23 @@ import com.eightam.lab.dto.CreateOrderRequest;
 import com.eightam.lab.dto.OrderOverview;
 import com.eightam.lab.dto.OrderResponse;
 import com.eightam.lab.entity.DrinkOrder;
+import com.eightam.lab.entity.LabUser;
 import com.eightam.lab.entity.Merchant;
 import com.eightam.lab.entity.MerchantProduct;
 import com.eightam.lab.entity.OrderStatus;
 import com.eightam.lab.entity.Product;
 import com.eightam.lab.repository.DrinkOrderRepository;
+import com.eightam.lab.repository.LabUserRepository;
 import com.eightam.lab.repository.MerchantProductRepository;
 import com.eightam.lab.repository.MerchantRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -25,13 +29,19 @@ public class OrderService {
     private final DrinkOrderRepository drinkOrderRepository;
     private final MerchantProductRepository merchantProductRepository;
     private final MerchantRepository merchantRepository;
+    private final LabUserRepository labUserRepository;
+    private final LoyaltyService loyaltyService;
 
     public OrderService(DrinkOrderRepository drinkOrderRepository,
                         MerchantProductRepository merchantProductRepository,
-                        MerchantRepository merchantRepository) {
+                        MerchantRepository merchantRepository,
+                        LabUserRepository labUserRepository,
+                        LoyaltyService loyaltyService) {
         this.drinkOrderRepository = drinkOrderRepository;
         this.merchantProductRepository = merchantProductRepository;
         this.merchantRepository = merchantRepository;
+        this.labUserRepository = labUserRepository;
+        this.loyaltyService = loyaltyService;
     }
 
     @Transactional
@@ -46,6 +56,10 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "该商品暂不可售");
         }
         Product product = merchantProduct.getProduct();
+        LabUser customerUser = null;
+        if (request.userId() != null) {
+            customerUser = labUserRepository.findById(request.userId()).orElse(null);
+        }
 
         DrinkOrder newOrder = new DrinkOrder(
                 request.customerName(),
@@ -60,8 +74,15 @@ public class OrderService {
                 merchantProduct.getDisplayName(),
                 LocalDateTime.now()
         );
+        newOrder.setCustomerUser(customerUser);
+        newOrder.setCustomSummary(request.customSummary());
+        newOrder.setCustomOptions(request.customizations());
 
         DrinkOrder saved = drinkOrderRepository.save(newOrder);
+        if (customerUser != null) {
+            int earnedPoints = calculatePoints(saved);
+            loyaltyService.recordEarnedPoints(customerUser.getId(), earnedPoints);
+        }
         return toResponse(saved);
     }
 
@@ -88,7 +109,21 @@ public class OrderService {
                 order.getStatus().name(),
                 order.resolveProductName(),
                 order.getMerchant().getName(),
-                order.getCreatedAt()
+                order.getCreatedAt(),
+                order.getCustomSummary(),
+                order.getCustomOptions()
         );
+    }
+
+    private int calculatePoints(DrinkOrder order) {
+        BigDecimal unitPrice = order.resolveUnitPrice();
+        if (unitPrice == null) {
+            return 0;
+        }
+        BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
+        if (total.signum() <= 0) {
+            return 0;
+        }
+        return total.setScale(0, RoundingMode.DOWN).intValue();
     }
 }

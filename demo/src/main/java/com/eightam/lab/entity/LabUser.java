@@ -1,5 +1,6 @@
 package com.eightam.lab.entity;
 
+import com.eightam.lab.domain.loyalty.MembershipTier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -48,6 +49,12 @@ public class LabUser {
 
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
+
+    @Column(name = "points", nullable = false)
+    private int points = 0;
+
+    @Column(name = "membership_level", nullable = false, length = 32)
+    private String membershipLevel = MembershipTier.EXPERIENCE.getCode();
 
     @Column(length = 255)
     private String avatar;
@@ -141,6 +148,22 @@ public class LabUser {
         this.passwordHash = passwordHash;
     }
 
+    public int getPoints() {
+        return points;
+    }
+
+    public void setPoints(int points) {
+        this.points = points;
+    }
+
+    public String getMembershipLevel() {
+        return membershipLevel;
+    }
+
+    public void setMembershipLevel(String membershipLevel) {
+        this.membershipLevel = membershipLevel;
+    }
+
     public String getAvatar() {
         return avatar;
     }
@@ -155,5 +178,9 @@ public class LabUser {
 
     public void setManagedMerchant(Merchant managedMerchant) {
         this.managedMerchant = managedMerchant;
+    }
+
+    public MembershipTier getMembershipTier() {
+        return MembershipTier.fromCode(membershipLevel);
     }
 }

@@ -60,7 +60,9 @@ public class MerchantOrderService {
                 order.getPickupTime(),
                 order.getCreatedAt(),
                 order.getCustomerName(),
-                order.getContactPhone()
+                order.getContactPhone(),
+                order.getCustomSummary(),
+                order.getCustomOptions()
         );
     }
 }

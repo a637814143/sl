@@ -1,6 +1,7 @@
 -- Demo schema for 8am Lab commerce platform
 
 DROP TABLE IF EXISTS drink_orders;
+DROP TABLE IF EXISTS merchant_banners;
 DROP TABLE IF EXISTS merchant_products;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS lab_users;
@@ -28,6 +29,8 @@ CREATE TABLE lab_users (
     birthday DATE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM ('ADMIN','MERCHANT','CUSTOMER') NOT NULL,
+    points INT NOT NULL DEFAULT 0,
+    membership_level VARCHAR(32) NOT NULL DEFAULT 'EXPERIENCE',
     avatar VARCHAR(255),
     managed_merchant_id BIGINT,
     CONSTRAINT pk_lab_users PRIMARY KEY (id),
@@ -44,6 +47,7 @@ CREATE TABLE products (
     image_url VARCHAR(255),
     flavor_profile VARCHAR(255),
     category VARCHAR(64),
+    option_config TEXT,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -72,6 +76,19 @@ CREATE TABLE merchant_products (
     CONSTRAINT uk_merchant_products UNIQUE (merchant_id, product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE merchant_banners (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    merchant_id BIGINT NOT NULL,
+    image_url VARCHAR(512) NOT NULL,
+    caption VARCHAR(255),
+    display_order INT DEFAULT 0,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    CONSTRAINT pk_merchant_banners PRIMARY KEY (id),
+    CONSTRAINT fk_merchant_banners_merchant FOREIGN KEY (merchant_id) REFERENCES merchants (id),
+    CONSTRAINT uk_merchant_banners_order UNIQUE (merchant_id, display_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE drink_orders (
     id BIGINT NOT NULL AUTO_INCREMENT,
     customer_name VARCHAR(255) NOT NULL,
@@ -82,13 +99,17 @@ CREATE TABLE drink_orders (
     merchant_id BIGINT NOT NULL,
     merchant_product_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
+    customer_user_id BIGINT,
     price_snapshot DECIMAL(10,2),
     product_name_snapshot VARCHAR(255),
+    custom_summary VARCHAR(255),
+    custom_options TEXT,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     CONSTRAINT pk_drink_orders PRIMARY KEY (id),
     CONSTRAINT fk_drink_orders_merchant FOREIGN KEY (merchant_id) REFERENCES merchants (id),
     CONSTRAINT fk_drink_orders_merchant_product FOREIGN KEY (merchant_product_id) REFERENCES merchant_products (id),
-    CONSTRAINT fk_drink_orders_product FOREIGN KEY (product_id) REFERENCES products (id)
+    CONSTRAINT fk_drink_orders_product FOREIGN KEY (product_id) REFERENCES products (id),
+    CONSTRAINT fk_drink_orders_customer FOREIGN KEY (customer_user_id) REFERENCES lab_users (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
     create table drink_orders (
@@ -2697,6 +2718,4035 @@ CREATE TABLE drink_orders (
     alter table lab_users 
        add constraint FKnfywwe07n8lly6liqmjd014bv 
        foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        customer_user_id bigint,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        custom_options TEXT,
+        custom_summary varchar(255),
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        points integer not null,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        membership_level varchar(32) not null,
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        option_config TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FKgwgg92gaitkj8kghgpifku2wt 
+       foreign key (customer_user_id) 
+       references lab_users (id);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        customer_user_id bigint,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        custom_options TEXT,
+        custom_summary varchar(255),
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        points integer not null,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        membership_level varchar(32) not null,
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        option_config TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FKgwgg92gaitkj8kghgpifku2wt 
+       foreign key (customer_user_id) 
+       references lab_users (id);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FK3j54ntnfgl2t99r7d6608mksi 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table merchant_products 
+       add constraint FKwgrq0admm837qwhefe7n1rab 
+       foreign key (product_id) 
+       references products (id);
+
+    create table drink_orders (
+        payment_amount decimal(10,2),
+        price_snapshot decimal(10,2),
+        quantity integer not null,
+        created_at datetime(6) not null,
+        customer_user_id bigint,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        merchant_product_id bigint not null,
+        paid_at datetime(6),
+        product_id bigint not null,
+        payment_status varchar(32),
+        payment_trade_no varchar(64),
+        contact_phone varchar(255) not null,
+        custom_options TEXT,
+        custom_summary varchar(255),
+        customer_name varchar(255) not null,
+        pickup_time varchar(255),
+        product_name_snapshot varchar(255),
+        status enum ('RECEIVED','PREPARING','READY','COMPLETED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table lab_users (
+        birthday date,
+        points integer not null,
+        id bigint not null auto_increment,
+        managed_merchant_id bigint,
+        gender varchar(32),
+        membership_level varchar(32) not null,
+        phone varchar(32),
+        family_name varchar(64),
+        given_name varchar(64),
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        avatar varchar(255),
+        password_hash varchar(255) not null,
+        role enum ('ADMIN','MERCHANT','CUSTOMER') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_banners (
+        display_order integer,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        updated_at datetime(6) not null,
+        image_url varchar(512) not null,
+        caption varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_products (
+        available_end time(6),
+        available_start time(6),
+        available_stock integer,
+        custom_price decimal(10,2),
+        daily_stock_limit integer,
+        display_order integer,
+        is_available bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        merchant_id bigint not null,
+        product_id bigint not null,
+        updated_at datetime(6) not null,
+        alias_code varchar(64),
+        custom_name varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchant_requests (
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        processed_at datetime(6),
+        contact_phone varchar(32),
+        applicant_name varchar(64) not null,
+        merchant_name varchar(128) not null,
+        note varchar(512),
+        location varchar(255),
+        status enum ('PENDING','APPROVED','REJECTED') not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table merchants (
+        latitude float(53),
+        longitude float(53),
+        id bigint not null auto_increment,
+        signature_story varchar(512),
+        contact varchar(255),
+        location varchar(255),
+        name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table products (
+        base_price decimal(10,2) not null,
+        is_active bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        category varchar(64),
+        sku_code varchar(64) not null,
+        description varchar(1024),
+        flavor_profile varchar(255),
+        image_url varchar(255),
+        name varchar(255) not null,
+        option_config TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    alter table lab_users 
+       add constraint UK_2f17fnuw0d0kbqwa4li7xygx1 unique (username);
+
+    alter table merchant_banners 
+       add constraint uk_merchant_banners_order unique (merchant_id, display_order);
+
+    alter table merchant_products 
+       add constraint uk_merchant_products unique (merchant_id, product_id);
+
+    alter table products 
+       add constraint uk_products_sku unique (sku_code);
+
+    alter table drink_orders 
+       add constraint FKgwgg92gaitkj8kghgpifku2wt 
+       foreign key (customer_user_id) 
+       references lab_users (id);
+
+    alter table drink_orders 
+       add constraint FK2pcst7l5x6a864hdtddfv31mx 
+       foreign key (merchant_id) 
+       references merchants (id);
+
+    alter table drink_orders 
+       add constraint FKnoya843oc34tc9rdt5yx84ieh 
+       foreign key (merchant_product_id) 
+       references merchant_products (id);
+
+    alter table drink_orders 
+       add constraint FK6t8441jfdn58hd3i68ila0069 
+       foreign key (product_id) 
+       references products (id);
+
+    alter table lab_users 
+       add constraint FKnfywwe07n8lly6liqmjd014bv 
+       foreign key (managed_merchant_id) 
+       references merchants (id);
+
+    alter table merchant_banners 
+       add constraint FKgyai4xejekkqj363pm1wgl4p6 
+       foreign key (merchant_id) 
        references merchants (id);
 
     alter table merchant_products 

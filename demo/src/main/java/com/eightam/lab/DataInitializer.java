@@ -1,15 +1,21 @@
 package com.eightam.lab;
 
+import com.eightam.lab.domain.loyalty.MembershipTier;
+import com.eightam.lab.domain.product.ProductOptionSettings;
 import com.eightam.lab.entity.DrinkOrder;
 import com.eightam.lab.entity.LabUser;
 import com.eightam.lab.entity.Merchant;
+import com.eightam.lab.entity.MerchantBanner;
 import com.eightam.lab.entity.MerchantProduct;
+import com.eightam.lab.entity.MerchantRequest;
 import com.eightam.lab.entity.OrderStatus;
 import com.eightam.lab.entity.Product;
 import com.eightam.lab.entity.UserRole;
 import com.eightam.lab.repository.DrinkOrderRepository;
 import com.eightam.lab.repository.LabUserRepository;
+import com.eightam.lab.repository.MerchantBannerRepository;
 import com.eightam.lab.repository.MerchantProductRepository;
+import com.eightam.lab.repository.MerchantRequestRepository;
 import com.eightam.lab.repository.MerchantRepository;
 import com.eightam.lab.repository.ProductRepository;
 import java.math.BigDecimal;
@@ -32,8 +38,10 @@ public class DataInitializer {
     CommandLineRunner loadSampleData(MerchantRepository merchantRepository,
                                      ProductRepository productRepository,
                                      MerchantProductRepository merchantProductRepository,
+                                     MerchantBannerRepository merchantBannerRepository,
                                      LabUserRepository labUserRepository,
                                      DrinkOrderRepository drinkOrderRepository,
+                                     MerchantRequestRepository merchantRequestRepository,
                                      PasswordEncoder passwordEncoder) {
         return args -> {
             if (merchantRepository.count() > 0 || productRepository.count() > 0) {
@@ -102,6 +110,9 @@ public class DataInitializer {
 
             createSampleOrders(drinkOrderRepository, labBar, labColdBrew, coldBrew);
             createSampleOrders(drinkOrderRepository, coCreation, coWhiteNoise, whiteNoise);
+            createSampleMerchantRequests(merchantRequestRepository);
+            createSampleBanners(merchantBannerRepository, labBar);
+            createSampleBanners(merchantBannerRepository, coCreation);
         };
     }
 
@@ -114,8 +125,10 @@ public class DataInitializer {
         product.setDescription(description);
         product.setImageUrl(imageUrl);
         product.setFlavorProfile(flavorProfile);
-        product.setCategory(category);
+        String normalizedCategory = category == null ? null : category.toUpperCase();
+        product.setCategory(normalizedCategory);
         product.setActive(true);
+        product.setOptionSettings(ProductOptionSettings.defaultsForCategory(normalizedCategory));
         return product;
     }
 
@@ -146,6 +159,8 @@ public class DataInitializer {
         admin.setGender("女");
         admin.setPhone("13800000001");
         admin.setBirthday(LocalDate.of(1992, 3, 18));
+        admin.setPoints(0);
+        admin.setMembershipLevel(MembershipTier.EXPERIENCE.getCode());
         labUserRepository.save(admin);
 
         LabUser merchant = new LabUser("Noah", UserRole.MERCHANT,
@@ -158,6 +173,8 @@ public class DataInitializer {
         merchant.setGender("男");
         merchant.setPhone("13800000002");
         merchant.setBirthday(LocalDate.of(1990, 11, 5));
+        merchant.setPoints(820);
+        merchant.setMembershipLevel(MembershipTier.PREFERRED.getCode());
         labUserRepository.save(merchant);
 
         LabUser customer = new LabUser("Iris", UserRole.CUSTOMER,
@@ -169,6 +186,8 @@ public class DataInitializer {
         customer.setGender("女");
         customer.setPhone("13800000003");
         customer.setBirthday(LocalDate.of(1995, 7, 9));
+        customer.setPoints(1650);
+        customer.setMembershipLevel(MembershipTier.INSPIRE.getCode());
         labUserRepository.save(customer);
     }
 
@@ -205,5 +224,59 @@ public class DataInitializer {
                 )
         );
         drinkOrderRepository.saveAll(seed);
+    }
+
+    private void createSampleMerchantRequests(MerchantRequestRepository merchantRequestRepository) {
+        MerchantRequest pending = new MerchantRequest(
+                "åšæ‹›å–”ä¸¢åº—",
+                "åŽå°š",
+                "13900000004",
+                "ä¸Šæµ·Â·æ°´ä¸Šæ—?Â·1F",
+                "æƒ³è¦?è¿›ä¸€æ­¥æŽ¨å¹¿ç‰¹è‰²å°é…’ä½“éªŒ"
+        );
+        MerchantRequest approved = new MerchantRequest(
+                "å¢žå¹¿é›¨ä½“éªŒåº—",
+                "é™ˆæ™¶",
+                "13700000005",
+                "æ·±åœ³Â·å—å±±åŽæµ·",
+                "è¿½æ±‚è¥é”€è¥æ•ˆå·²æŽ¥è§¦å…¥é©»"
+        );
+        approved.markApproved();
+        MerchantRequest rejected = new MerchantRequest(
+                "é±¼ç™½çš„åˆ›é…’å·¥å",
+                "åˆ˜éŸµ",
+                "13600000006",
+                "æ­¦æ±‰Â·å°å³°ä¸–çºªå¤§åŽ¦",
+                "éœ€è¦å»ºç«‹æ›´å®Œæ•´çš„SCM"
+        );
+        rejected.markRejected();
+        merchantRequestRepository.saveAll(List.of(pending, approved, rejected));
+    }
+
+    private void createSampleBanners(MerchantBannerRepository merchantBannerRepository,
+                                     Merchant merchant) {
+        merchantBannerRepository.saveAll(List.of(
+                buildBanner(merchant,
+                        "https://images.8amlab.cn/banners/morning-lab.png",
+                        "æ™¨é—´é¦–é¡µçµæ„Ÿ",
+                        1),
+                buildBanner(merchant,
+                        "https://images.8amlab.cn/banners/signature-lab.png",
+                        "åŠå¤©å‰åŽä¸“å±",
+                        2),
+                buildBanner(merchant,
+                        "https://images.8amlab.cn/banners/dessert-lab.png",
+                        "çŽ°çƒ¤ç”œå“",
+                        3)
+        ));
+    }
+
+    private MerchantBanner buildBanner(Merchant merchant, String imageUrl, String caption, int order) {
+        MerchantBanner banner = new MerchantBanner();
+        banner.setMerchant(merchant);
+        banner.setImageUrl(imageUrl);
+        banner.setCaption(caption);
+        banner.setDisplayOrder(order);
+        return banner;
     }
 }

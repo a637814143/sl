@@ -27,7 +27,8 @@ public class DrinkSummaryMapper {
                 merchantProduct.getDailyStockLimit(),
                 merchantProduct.getAvailableStock(),
                 merchantProduct.getAvailableStart(),
-                merchantProduct.getAvailableEnd()
+                merchantProduct.getAvailableEnd(),
+                product != null ? product.getOptionSettings() : null
         );
     }
 }

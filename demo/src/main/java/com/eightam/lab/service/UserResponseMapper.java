@@ -1,5 +1,6 @@
 package com.eightam.lab.service;
 
+import com.eightam.lab.domain.loyalty.MembershipTier;
 import com.eightam.lab.dto.UserResponse;
 import com.eightam.lab.entity.LabUser;
 import com.eightam.lab.entity.Merchant;
@@ -10,6 +11,7 @@ public class UserResponseMapper {
 
     public UserResponse from(LabUser user) {
         Merchant merchant = user.getManagedMerchant();
+        MembershipTier tier = user.getMembershipTier();
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
@@ -22,7 +24,10 @@ public class UserResponseMapper {
                 user.getRole().name(),
                 user.getAvatar(),
                 merchant != null ? merchant.getId() : null,
-                merchant != null ? merchant.getName() : null
+                merchant != null ? merchant.getName() : null,
+                user.getPoints(),
+                tier.getCode(),
+                tier.getLabel()
         );
     }
 }

@@ -1,7 +1,6 @@
 我先事先说明一下，一切以移动端的微信小程序实现为首要目标，布局符合微信小程序的布局和美观，还有就是能用中文的地方就用
   中文
 
-
 • - 现在整页内容都包在 v-if="currentUser" 的模板里（front/src/App.vue:2 起），未登录时只显示新的 <section class="auth-
     gate"> 登录/注册面板（front/src/App.vue:289、front/src/App.vue:345），因此用户进入小程序第一时间就必须完成登录，登录
     后才会渲染主内容与底部 tabbar。

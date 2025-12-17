@@ -3,6 +3,7 @@ package com.eightam.lab.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 
 public record CreateOrderRequest(
         @NotBlank(message = "请填写称呼")
@@ -15,6 +16,9 @@ public record CreateOrderRequest(
         Long merchantId,
         @Min(value = 1, message = "至少选择一杯")
         int quantity,
-        String pickupTime
+        String pickupTime,
+        Long userId,
+        String customSummary,
+        Map<String, String> customizations
 ) {
 }

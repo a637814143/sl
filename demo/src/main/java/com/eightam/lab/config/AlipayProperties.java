@@ -40,6 +40,11 @@ public class AlipayProperties {
      */
     private String signType = "RSA2";
 
+    /**
+     * 是否由服务器拉取支付宝页面 HTML 并返回给客户端，避免前端直连
+     */
+    private boolean fetchPage = false;
+
     public String getAppId() {
         return appId;
     }
@@ -94,5 +99,13 @@ public class AlipayProperties {
 
     public void setSignType(String signType) {
         this.signType = signType;
+    }
+
+    public boolean isFetchPage() {
+        return fetchPage;
+    }
+
+    public void setFetchPage(boolean fetchPage) {
+        this.fetchPage = fetchPage;
     }
 }

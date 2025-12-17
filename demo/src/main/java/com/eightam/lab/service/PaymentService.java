@@ -12,8 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -24,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Comparator;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -84,9 +89,11 @@ public class PaymentService {
         String returnUrl = StringUtils.hasText(request.returnUrl())
                 ? request.returnUrl()
                 : alipayProperties.getReturnUrl();
-        String payUrl = buildPayUrl(tradeNo, subject, body, totalAmount, returnUrl);
+        Map<String, String> gatewayParams = buildGatewayParams(tradeNo, subject, body, totalAmount, returnUrl);
+        String payUrl = buildPayUrl(gatewayParams);
+        String payPageHtml = alipayProperties.isFetchPage() ? fetchPayPage(gatewayParams) : null;
 
-        return new AlipayPaymentResponse(tradeNo, totalAmount, payUrl, orders.size());
+        return new AlipayPaymentResponse(tradeNo, totalAmount, payUrl, orders.size(), payPageHtml);
     }
 
     @Transactional
@@ -165,8 +172,13 @@ public class PaymentService {
         return "PAY" + baseId + System.currentTimeMillis();
     }
 
-    private String buildPayUrl(String tradeNo, String subject, String body,
-                               BigDecimal amount, String returnUrl) {
+    private Map<String, String> buildGatewayParams(
+            String tradeNo,
+            String subject,
+            String body,
+            BigDecimal amount,
+            String returnUrl
+    ) {
         Map<String, String> params = new TreeMap<>();
         params.put("app_id", require(alipayProperties.getAppId(), "未配置支付宝 APP_ID"));
         params.put("method", "alipay.trade.page.pay");
@@ -182,6 +194,10 @@ public class PaymentService {
         String content = buildSignContent(params);
         String signature = sign(content);
         params.put("sign", signature);
+        return params;
+    }
+
+    private String buildPayUrl(Map<String, String> params) {
         return alipayProperties.getGateway() + "?" + buildQuery(params);
     }
 
@@ -218,6 +234,27 @@ public class PaymentService {
 
     private String urlEncode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String fetchPayPage(Map<String, String> params) {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(alipayProperties.getGateway()))
+                    .header("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
+                    .POST(HttpRequest.BodyPublishers.ofString(buildQuery(params)))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 200) {
+                return response.body();
+            }
+            log.warn("Failed to fetch Alipay page, status={}", response.statusCode());
+        } catch (Exception ex) {
+            log.warn("Fetch Alipay page failed", ex);
+        }
+        return null;
     }
 
     private String sign(String content) {

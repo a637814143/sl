@@ -62,6 +62,7 @@ alipay:
   notify-url: http://localhost:8080/api/payments/alipay/notify
   return-url: http://192.168.0.194:5173/
   sign-type: RSA2
+  fetch-page: false
 
 app:
   cors:

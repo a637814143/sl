@@ -1,6 +1,8 @@
 package com.eightam.lab.entity;
 
+import com.eightam.lab.entity.converter.StringMapConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -12,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "drink_orders")
@@ -48,6 +51,10 @@ public class DrinkOrder {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @ManyToOne
+    @JoinColumn(name = "customer_user_id")
+    private LabUser customerUser;
+
     @Column(name = "price_snapshot", precision = 10, scale = 2)
     private BigDecimal priceSnapshot;
 
@@ -68,6 +75,13 @@ public class DrinkOrder {
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
+
+    @Column(name = "custom_summary", length = 255)
+    private String customSummary;
+
+    @Convert(converter = StringMapConverter.class)
+    @Column(name = "custom_options", columnDefinition = "TEXT")
+    private Map<String, String> customOptions;
 
     protected DrinkOrder() {
     }
@@ -179,6 +193,30 @@ public class DrinkOrder {
 
     public void setPaidAt(LocalDateTime paidAt) {
         this.paidAt = paidAt;
+    }
+
+    public String getCustomSummary() {
+        return customSummary;
+    }
+
+    public void setCustomSummary(String customSummary) {
+        this.customSummary = customSummary;
+    }
+
+    public Map<String, String> getCustomOptions() {
+        return customOptions;
+    }
+
+    public void setCustomOptions(Map<String, String> customOptions) {
+        this.customOptions = customOptions;
+    }
+
+    public LabUser getCustomerUser() {
+        return customerUser;
+    }
+
+    public void setCustomerUser(LabUser customerUser) {
+        this.customerUser = customerUser;
     }
 
     public BigDecimal resolveUnitPrice() {

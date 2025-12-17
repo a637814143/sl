@@ -1,6 +1,7 @@
 -- Schema generated for 8am Lab commerce platform
 
 DROP TABLE IF EXISTS drink_orders;
+DROP TABLE IF EXISTS merchant_banners;
 DROP TABLE IF EXISTS merchant_products;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS lab_users;
@@ -28,6 +29,8 @@ CREATE TABLE lab_users (
     birthday DATE,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL,
+    points INT NOT NULL DEFAULT 0,
+    membership_level VARCHAR(32) NOT NULL DEFAULT 'EXPERIENCE',
     avatar VARCHAR(255),
     managed_merchant_id BIGINT,
     CONSTRAINT pk_lab_users PRIMARY KEY (id),
@@ -44,6 +47,7 @@ CREATE TABLE products (
     image_url VARCHAR(255),
     flavor_profile VARCHAR(255),
     category VARCHAR(64),
+    option_config TEXT,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -72,6 +76,19 @@ CREATE TABLE merchant_products (
     CONSTRAINT uk_merchant_products UNIQUE (merchant_id, product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE merchant_banners (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    merchant_id BIGINT NOT NULL,
+    image_url VARCHAR(512) NOT NULL,
+    caption VARCHAR(255),
+    display_order INT DEFAULT 0,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    CONSTRAINT pk_merchant_banners PRIMARY KEY (id),
+    CONSTRAINT fk_merchant_banners_merchant FOREIGN KEY (merchant_id) REFERENCES merchants (id),
+    CONSTRAINT uk_merchant_banners_order UNIQUE (merchant_id, display_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE drink_orders (
     id BIGINT NOT NULL AUTO_INCREMENT,
     customer_name VARCHAR(255) NOT NULL,
@@ -82,11 +99,15 @@ CREATE TABLE drink_orders (
     merchant_id BIGINT NOT NULL,
     merchant_product_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
+    customer_user_id BIGINT,
     price_snapshot DECIMAL(10,2),
     product_name_snapshot VARCHAR(255),
+    custom_summary VARCHAR(255),
+    custom_options TEXT,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     CONSTRAINT pk_drink_orders PRIMARY KEY (id),
     CONSTRAINT fk_drink_orders_merchant FOREIGN KEY (merchant_id) REFERENCES merchants (id),
     CONSTRAINT fk_drink_orders_merchant_product FOREIGN KEY (merchant_product_id) REFERENCES merchant_products (id),
-    CONSTRAINT fk_drink_orders_product FOREIGN KEY (product_id) REFERENCES products (id)
+    CONSTRAINT fk_drink_orders_product FOREIGN KEY (product_id) REFERENCES products (id),
+    CONSTRAINT fk_drink_orders_customer FOREIGN KEY (customer_user_id) REFERENCES lab_users (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

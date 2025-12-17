@@ -13,6 +13,9 @@ public class UserResponse {
     private String avatar;
     private Long merchantId;
     private String merchantName;
+    private int points;
+    private String membershipLevel;
+    private String membershipLabel;
 
     public UserResponse() {
     }
@@ -20,7 +23,8 @@ public class UserResponse {
     public UserResponse(Long id, String username, String displayName,
                         String familyName, String givenName,
                         String gender, String phone, String birthday,
-                        String role, String avatar, Long merchantId, String merchantName) {
+                        String role, String avatar, Long merchantId, String merchantName,
+                        int points, String membershipLevel, String membershipLabel) {
         this.id = id;
         this.username = username;
         this.displayName = displayName;
@@ -33,6 +37,9 @@ public class UserResponse {
         this.avatar = avatar;
         this.merchantId = merchantId;
         this.merchantName = merchantName;
+        this.points = points;
+        this.membershipLevel = membershipLevel;
+        this.membershipLabel = membershipLabel;
     }
 
     public Long getId() {
@@ -129,5 +136,29 @@ public class UserResponse {
 
     public void setMerchantName(String merchantName) {
         this.merchantName = merchantName;
+    }
+
+    public int getPoints() {
+        return points;
+    }
+
+    public void setPoints(int points) {
+        this.points = points;
+    }
+
+    public String getMembershipLevel() {
+        return membershipLevel;
+    }
+
+    public void setMembershipLevel(String membershipLevel) {
+        this.membershipLevel = membershipLevel;
+    }
+
+    public String getMembershipLabel() {
+        return membershipLabel;
+    }
+
+    public void setMembershipLabel(String membershipLabel) {
+        this.membershipLabel = membershipLabel;
     }
 }
