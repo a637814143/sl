@@ -2930,6 +2930,126 @@ const enterCheckout = () => {
   activeTab.value = 'checkout'
 }
 
+let preparedPaymentWindow = null
+
+const preparePaymentWindow = () => {
+  if (typeof window === 'undefined') return null
+  if (preparedPaymentWindow && preparedPaymentWindow.closed) {
+    preparedPaymentWindow = null
+  }
+  if (!preparedPaymentWindow) {
+    preparedPaymentWindow = window.open('', '_blank')
+  }
+  return preparedPaymentWindow
+}
+
+const resetPaymentWindow = (shouldClose = false) => {
+  if (preparedPaymentWindow && shouldClose && !preparedPaymentWindow.closed) {
+    preparedPaymentWindow.close()
+  }
+  preparedPaymentWindow = null
+}
+
+const submitPaymentFormSilently = (html) => {
+  if (typeof document === 'undefined' || typeof DOMParser === 'undefined') {
+    return false
+  }
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const sourceForm = doc.querySelector('form')
+    if (!sourceForm) {
+      return false
+    }
+    const action = sourceForm.getAttribute('action')
+    if (!action) {
+      return false
+    }
+    const fallbackForm = document.createElement('form')
+    fallbackForm.method = sourceForm.getAttribute('method') || 'post'
+    fallbackForm.action = action
+    fallbackForm.target = sourceForm.getAttribute('target') || '_self'
+    fallbackForm.style.display = 'none'
+    sourceForm.querySelectorAll('input[name]').forEach((input) => {
+      const cloned = document.createElement('input')
+      cloned.type = 'hidden'
+      cloned.name = input.getAttribute('name') || ''
+      cloned.value = input.getAttribute('value') || ''
+      fallbackForm.appendChild(cloned)
+    })
+    document.body.appendChild(fallbackForm)
+    fallbackForm.submit()
+    return true
+  } catch {
+    return false
+  }
+}
+
+const writePaymentDocument = (html, targetWindow) => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return false
+  }
+  let paymentWindow = targetWindow && !targetWindow.closed ? targetWindow : null
+  try {
+    if (paymentWindow && paymentWindow.document) {
+      paymentWindow.document.open()
+      paymentWindow.document.write(html)
+      paymentWindow.document.close()
+      return true
+    }
+    if (!paymentWindow) {
+      paymentWindow = window.open('', '_blank')
+      if (paymentWindow && paymentWindow.document) {
+        paymentWindow.document.open()
+        paymentWindow.document.write(html)
+        paymentWindow.document.close()
+        return true
+      }
+    }
+  } catch {
+    // ignore and fallback to form submission
+  }
+  if (!paymentWindow) {
+    paymentWindow = window.open('', '_blank', 'noopener')
+  }
+  if (paymentWindow) {
+    try {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const blobUrl = URL.createObjectURL(blob)
+      paymentWindow.location.href = blobUrl
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000)
+      return true
+    } catch {
+      // ignore
+    }
+  }
+  return submitPaymentFormSilently(html)
+}
+
+const openAlipayWindow = (paymentResult, targetWindow) => {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  const preparedWindow = targetWindow && !targetWindow.closed ? targetWindow : null
+  if (paymentResult?.payPageHtml && writePaymentDocument(paymentResult.payPageHtml, preparedWindow)) {
+    return true
+  }
+  if (paymentResult?.payUrl) {
+    if (preparedWindow) {
+      preparedWindow.location.href = paymentResult.payUrl
+      return true
+    }
+    const opened = window.open(paymentResult.payUrl, '_blank')
+    if (opened) {
+      return true
+    }
+    window.location.href = paymentResult.payUrl
+    return true
+  }
+  return false
+}
+
+
 const handleCheckoutSubmit = async () => {
   if (checkoutDisabled.value) return
   if (!currentUser.value) {
@@ -2952,6 +3072,7 @@ const handleCheckoutSubmit = async () => {
     handleProfileAction('info')
     return
   }
+  const paymentWindowRef = typeof window !== 'undefined' ? preparePaymentWindow() : null
   checkoutSubmitting.value = true
   checkoutFeedback.value = ''
   try {
@@ -2976,6 +3097,7 @@ const handleCheckoutSubmit = async () => {
     }
     if (!createdOrderIds.length) {
       checkoutFeedback.value = '未能创建订单，请稍后再试'
+      resetPaymentWindow(true)
       return
     }
     checkoutFeedback.value = '订单已创建，正在拉起支付宝'
@@ -2985,10 +3107,14 @@ const handleCheckoutSubmit = async () => {
       orderIds: createdOrderIds,
       returnUrl: paymentReturnUrl
     })
-    if (payment?.payUrl && typeof window !== 'undefined') {
-      const opened = window.open(payment.payUrl, '_blank', 'noopener')
-      if (!opened) {
-        window.location.href = payment.payUrl
+    if (typeof window !== 'undefined') {
+      const launched = openAlipayWindow(payment, paymentWindowRef)
+      if (!launched) {
+        resetPaymentWindow(true)
+        checkoutFeedback.value =
+          '订单已创建，但未能自动打开支付宝，请检查弹窗设置或稍后到“我的-订单中心”继续支付'
+      } else {
+        resetPaymentWindow()
       }
     }
     await loadSharedResources()
@@ -2998,6 +3124,7 @@ const handleCheckoutSubmit = async () => {
     checkoutFeedback.value = '请在支付宝完成支付，稍后可在“我的-订单中心”查看进度'
     activeTab.value = 'home'
   } catch (error) {
+    resetPaymentWindow(true)
     checkoutFeedback.value = error?.response?.data?.message || '下单或拉起支付失败，请稍后再试'
   } finally {
     checkoutSubmitting.value = false

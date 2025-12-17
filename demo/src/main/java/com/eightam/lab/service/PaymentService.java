@@ -89,9 +89,13 @@ public class PaymentService {
         String returnUrl = StringUtils.hasText(request.returnUrl())
                 ? request.returnUrl()
                 : alipayProperties.getReturnUrl();
+        if (alipayProperties.isMockMode()) {
+            String mockPage = buildMockPayPage(tradeNo, totalAmount, returnUrl);
+            return new AlipayPaymentResponse(tradeNo, totalAmount, null, orders.size(), mockPage);
+        }
         Map<String, String> gatewayParams = buildGatewayParams(tradeNo, subject, body, totalAmount, returnUrl);
         String payUrl = buildPayUrl(gatewayParams);
-        String payPageHtml = alipayProperties.isFetchPage() ? fetchPayPage(gatewayParams) : null;
+        String payPageHtml = resolvePayPageHtml(gatewayParams);
 
         return new AlipayPaymentResponse(tradeNo, totalAmount, payUrl, orders.size(), payPageHtml);
     }
@@ -132,6 +136,26 @@ public class PaymentService {
         });
         orderRepository.saveAll(orders);
         return "success";
+    }
+
+    @Transactional
+    public void confirmMockPayment(String tradeNo) {
+        if (!alipayProperties.isMockMode()) {
+            throw new IllegalStateException("未开启模拟支付模式");
+        }
+        if (!StringUtils.hasText(tradeNo)) {
+            throw new IllegalArgumentException("tradeNo 不能为空");
+        }
+        List<DrinkOrder> orders = orderRepository.findAllByPaymentTradeNo(tradeNo);
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("未找到需要更新的订单");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        orders.forEach(order -> {
+            order.setPaymentStatus("SUCCESS");
+            order.setPaidAt(now);
+        });
+        orderRepository.saveAll(orders);
     }
 
     public boolean verifyReturn(Map<String, String> params) {
@@ -255,6 +279,132 @@ public class PaymentService {
             log.warn("Fetch Alipay page failed", ex);
         }
         return null;
+    }
+
+    private String resolvePayPageHtml(Map<String, String> gatewayParams) {
+        String html = null;
+        if (alipayProperties.isFetchPage()) {
+            html = fetchPayPage(gatewayParams);
+        }
+        if (!StringUtils.hasText(html)) {
+            html = buildAutoSubmitForm(gatewayParams);
+        }
+        return html;
+    }
+
+    private String buildAutoSubmitForm(Map<String, String> params) {
+        String action = alipayProperties.getGateway();
+        if (!StringUtils.hasText(action)) {
+            action = "https://openapi.alipaydev.com/gateway.do";
+        }
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html>");
+        html.append("<html lang='zh-CN'>");
+        html.append("<head>");
+        html.append("<meta charset='UTF-8'>");
+        html.append("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+        html.append("<title>正在跳转支付宝</title>");
+        html.append("<style>body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f5f5;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#333;} .panel{background:#fff;padding:32px;border-radius:18px;box-shadow:0 10px 40px rgba(17,38,146,0.15);text-align:center;max-width:420px;margin:24px;} h1{font-size:20px;margin:0 0 12px;} p{margin:0 0 24px;color:#666;} button{background:#1677ff;color:#fff;border:none;border-radius:999px;padding:12px 28px;font-size:16px;cursor:pointer;} button:focus{outline:none;} </style>");
+        html.append("</head>");
+        html.append("<body>");
+        html.append("<div class='panel'>");
+        html.append("<h1>正在拉起支付宝</h1>");
+        html.append("<p>请稍候，若未自动跳转可点击下方按钮。</p>");
+        html.append("<form id='alipayForm' method='post' action='").append(escapeHtml(action)).append("'>");
+        params.forEach((key, value) -> {
+            if (value != null) {
+                html.append("<input type='hidden' name='")
+                        .append(escapeHtml(key))
+                        .append("' value='")
+                        .append(escapeHtml(value))
+                        .append("'/>");
+            }
+        });
+        html.append("<button type='submit'>立即前往支付</button>");
+        html.append("</form>");
+        html.append("</div>");
+        html.append("<script>setTimeout(function(){var form=document.getElementById('alipayForm');if(form){form.submit();}},300);</script>");
+        html.append("</body>");
+        html.append("</html>");
+        return html.toString();
+    }
+
+    private String buildMockPayPage(String tradeNo, BigDecimal totalAmount, String returnUrl) {
+        String safeReturn = StringUtils.hasText(returnUrl) ? returnUrl : "/";
+        String amountText = totalAmount != null ? totalAmount.toPlainString() : "0.00";
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html>");
+        html.append("<html lang='zh-CN'>");
+        html.append("<head>");
+        html.append("<meta charset='UTF-8'>");
+        html.append("<meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1'>");
+        html.append("<title>模拟支付宝支付</title>");
+        html.append("<style>");
+        html.append(
+                "body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f7fb;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#1d2129;}");
+        html.append(
+                ".panel{background:#fff;padding:32px 28px;border-radius:24px;box-shadow:0 20px 60px rgba(15,23,42,0.12);max-width:460px;width:92%;text-align:center;}");
+        html.append(".badge{display:inline-flex;padding:6px 12px;border-radius:999px;background:#e8f3ff;color:#1677ff;font-size:12px;margin-bottom:20px;}");
+        html.append("h1{font-size:22px;margin:0 0 12px;}");
+        html.append(".amount{font-size:32px;margin:8px 0 24px;font-weight:600;color:#1677ff;}");
+        html.append(".status{color:#666;font-size:14px;margin-bottom:24px;}");
+        html.append("button{width:100%;border:none;border-radius:16px;padding:14px 18px;font-size:16px;font-weight:600;margin-bottom:12px;cursor:pointer;}");
+        html.append(".primary{background:linear-gradient(135deg,#1677ff,#4096ff);color:#fff;}");
+        html.append(".ghost{background:#f2f5fb;color:#3a3d45;}");
+        html.append(".tips{font-size:12px;color:#999;margin-top:12px;}");
+        html.append("</style>");
+        html.append("</head>");
+        html.append("<body>");
+        html.append("<div class='panel'>");
+        html.append("<div class='badge'>模拟支付</div>");
+        html.append("<h1>模拟支付宝支付</h1>");
+        html.append("<div class='amount'>¥ ").append(escapeHtml(amountText)).append("</div>");
+        html.append("<p class='status'>将模拟扣款并返回小程序</p>");
+        html.append("<button class='primary' onclick=\"mockPay()\">确认支付（模拟）</button>");
+        html.append("<button class='ghost' onclick=\"backToApp()\">取消并返回</button>");
+        html.append("<p class='tips'>提示：仅用于演示，不会真实扣款</p>");
+        html.append("<form id='mockFallbackForm' target='_blank' method='post' action='/api/payments/alipay/mock-success'>");
+        html.append("<input type='hidden' name='tradeNo' value='").append(escapeHtml(tradeNo)).append("'/>");
+        html.append("</form>");
+        html.append("</div>");
+        html.append("<script>");
+        html.append("const tradeNo=").append(jsStringLiteral(tradeNo)).append(";");
+        html.append("const returnUrl=").append(jsStringLiteral(safeReturn)).append(";");
+        html.append("function mockPay(){");
+        html.append("const btn=document.querySelector('.primary');if(btn){btn.disabled=true;btn.innerText='支付处理中...';}");
+        html.append("fetch('/api/payments/alipay/mock-success?tradeNo='+encodeURIComponent(tradeNo),{method:'POST'})");
+        html.append(".then(()=>{const status=document.querySelector('.status');if(status){status.innerText='支付成功（模拟），即将返回';}");
+        html.append("setTimeout(()=>{if(returnUrl&&returnUrl!=='null'){window.location.href=returnUrl;}},700);})");
+        html.append(".catch(()=>{alert('同步失败，请稍后在“我的-订单中心”查看状态');if(btn){btn.disabled=false;btn.innerText='确认支付（模拟）';}});}");
+        html.append("function backToApp(){if(returnUrl&&returnUrl!=='null'){window.location.href=returnUrl;}}");
+        html.append("</script>");
+        html.append("</body>");
+        html.append("</html>");
+        return html.toString();
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+
+    private String jsStringLiteral(String text) {
+        if (text == null) {
+            return "null";
+        }
+        String escaped = text
+                .replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n");
+        return "'" + escaped + "'";
     }
 
     private String sign(String content) {

@@ -45,6 +45,11 @@ public class AlipayProperties {
      */
     private boolean fetchPage = false;
 
+    /**
+     * 是否启用模拟支付模式（不真实请求支付宝，返回内置模拟页）
+     */
+    private boolean mockMode = false;
+
     public String getAppId() {
         return appId;
     }
@@ -107,5 +112,13 @@ public class AlipayProperties {
 
     public void setFetchPage(boolean fetchPage) {
         this.fetchPage = fetchPage;
+    }
+
+    public boolean isMockMode() {
+        return mockMode;
+    }
+
+    public void setMockMode(boolean mockMode) {
+        this.mockMode = mockMode;
     }
 }
